@@ -66,11 +66,9 @@ public class PvPManagerHook extends PluginHook<DuelsPlugin> {
 
             final Player player = event.getPlayer();
             final Player enemy = event.getEnemy();
-            if (!arenaManager.isInMatch(player) || (enemy != null && arenaManager.isInMatch(enemy))) {
-                return;
+            if (arenaManager.isInMatch(player) || (enemy != null && arenaManager.isInMatch(enemy))) {
+                event.setCancelled(true);
             }
-
-            event.setCancelled(true);
         }
     }
 }
