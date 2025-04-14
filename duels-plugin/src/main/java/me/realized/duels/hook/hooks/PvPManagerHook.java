@@ -35,18 +35,25 @@ public class PvPManagerHook extends PluginHook<DuelsPlugin> {
     }
 
     public boolean isTagged(final Player player) {
-        if (config.isPmPreventDuel()) {
-            return false;
-        }
-
         final PlayerHandler playerHandler = ((PvPManager) getPlugin()).getPlayerHandler();
-
         if (playerHandler == null) {
             return false;
         }
 
         final PvPlayer pvPlayer = playerHandler.get(player);
         return pvPlayer != null && pvPlayer.isInCombat();
+    }
+
+    public void untag(final Player player) {
+        final PlayerHandler playerHandler = ((PvPManager) getPlugin()).getPlayerHandler();
+        if (playerHandler == null) {
+            return;
+        }
+        final PvPlayer pvPlayer = playerHandler.get(player);
+        if (pvPlayer == null) {
+            return;
+        }
+        playerHandler.untag(pvPlayer);
     }
 
     public class PvPManagerListener implements Listener {
@@ -58,8 +65,8 @@ public class PvPManagerHook extends PluginHook<DuelsPlugin> {
             }
 
             final Player player = event.getPlayer();
-
-            if (!arenaManager.isInMatch(player)) {
+            final Player enemy = event.getEnemy();
+            if (!arenaManager.isInMatch(player) || (enemy != null && arenaManager.isInMatch(enemy))) {
                 return;
             }
 

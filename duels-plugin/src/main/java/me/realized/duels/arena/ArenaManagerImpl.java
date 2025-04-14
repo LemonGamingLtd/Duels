@@ -26,6 +26,7 @@ import me.realized.duels.api.event.arena.ArenaRemoveEvent;
 import me.realized.duels.config.Config;
 import me.realized.duels.config.Lang;
 import me.realized.duels.data.ArenaData;
+import me.realized.duels.hook.hooks.PvPManagerHook;
 import me.realized.duels.kit.KitImpl;
 import me.realized.duels.queue.Queue;
 import me.realized.duels.util.Loadable;
@@ -109,6 +110,18 @@ public class ArenaManagerImpl implements Loadable, ArenaManager {
 
     @Override
     public void handleUnload() {
+        final PvPManagerHook hook = plugin.getHookManager().getHook(PvPManagerHook.class);
+        if (hook != null) {
+            for (final ArenaImpl arena : this.arenas) {
+                for (final Player player : arena.getPlayers()) {
+                    if (!hook.isTagged(player)) {
+                        continue;
+                    }
+                    hook.untag(player);
+                }
+            }
+        }
+
         if (gui != null) {
             plugin.getGuiListener().removeGui(gui);
         }
