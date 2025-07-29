@@ -61,6 +61,19 @@ subprojects {
             url 'https://repo.essentialsx.net/releases/'
         }
 
+        maven {
+            name 'jitpack'
+            url 'https://jitpack.io'
+        }
+
+        maven {
+            credentials {
+                username = providers.gradleProperty('lgNexusUser').get()
+                password = providers.gradleProperty('lgNexusPass').get()
+            }
+            url = 'https://repo.lemongaming.ltd/repository/maven-public/'
+        }
+
         flatDir {
             dirs "$rootDir/libs/"
         }

@@ -18,6 +18,7 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.ThreadLocalRandom;
 import lombok.Getter;
+import me.nahu.scheduler.wrapper.task.WrappedTask;
 import me.realized.duels.DuelsPlugin;
 import me.realized.duels.api.event.queue.QueueCreateEvent;
 import me.realized.duels.api.event.queue.QueueJoinEvent;
@@ -83,7 +84,7 @@ public class QueueManager implements Loadable, DQueueManager, Listener {
     private PvPManagerHook pvpManager;
     private WorldGuardHook worldGuard;
     private VaultHook vault;
-    private int queueTask;
+    private WrappedTask queueTask;
 
     @Getter
     private MultiPageGui<DuelsPlugin> gui;
@@ -149,7 +150,7 @@ public class QueueManager implements Loadable, DQueueManager, Listener {
         this.pvpManager = plugin.getHookManager().getHook(PvPManagerHook.class);
         this.worldGuard = plugin.getHookManager().getHook(WorldGuardHook.class);
         this.vault = plugin.getHookManager().getHook(VaultHook.class);
-        this.queueTask = plugin.doSyncRepeat(() -> {
+        this.queueTask = plugin.getScheduler().runTaskTimer(() -> {
             boolean update = false;
 
             for (final Queue queue : queues) {
@@ -202,12 +203,14 @@ public class QueueManager implements Loadable, DQueueManager, Listener {
             if (update) {
                 gui.calculatePages();
             }
-        }, 20L, 40L).getTaskId();
+        }, 20L, 40L);
     }
 
     @Override
     public void handleUnload() {
-        plugin.cancelTask(queueTask);
+        if (queueTask != null) {
+            queueTask.cancel();
+        }
 
         if (gui != null) {
             plugin.getGuiListener().removeGui(gui);

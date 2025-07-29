@@ -193,7 +193,7 @@ public class BettingGui extends AbstractGui<DuelsPlugin> {
         final Player other = Bukkit.getPlayer(first.equals(player.getUniqueId()) ? second : first);
 
         if (other != null) {
-            plugin.doSync(() -> {
+            plugin.getScheduler().runTaskAtEntity(other, () -> {
                 if (inventory.getViewers().contains(other)) {
                     other.closeInventory();
                 }

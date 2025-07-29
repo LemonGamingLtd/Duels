@@ -203,7 +203,7 @@ public class KitOptionsListener implements Listener {
                 return;
             }
 
-            plugin.doSyncAfter(() -> player.setNoDamageTicks(0), 1);
+            plugin.getScheduler().runTaskLaterAtEntity(player, () -> player.setNoDamageTicks(0), 1);
         }
     }
 }

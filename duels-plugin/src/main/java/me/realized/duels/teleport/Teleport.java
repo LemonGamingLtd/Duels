@@ -32,7 +32,7 @@ public final class Teleport implements Loadable, Listener {
         this.essentials = plugin.getHookManager().getHook(EssentialsHook.class);
 
         // Late-register the listener to override previously registered listeners
-        plugin.doSyncAfter(() -> plugin.registerListener(this), 1L);
+        plugin.getScheduler().runTask(() -> plugin.registerListener(this));
     }
 
     @Override

@@ -4,6 +4,7 @@ import java.util.Objects;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.Setter;
+import me.realized.duels.DuelsPlugin;
 import me.realized.duels.api.queue.sign.QueueSign;
 import me.realized.duels.queue.Queue;
 import me.realized.duels.util.StringUtil;
@@ -60,35 +61,36 @@ public class QueueSignImpl implements QueueSign {
     }
 
     public void update() {
-        final Block block = location.getBlock();
+        DuelsPlugin.getInstance().getScheduler().runTaskAtLocation(location, () -> {
+            final Block block = location.getBlock();
+            if (!(block.getState() instanceof Sign)) {
+                return;
+            }
 
-        if (!(block.getState() instanceof Sign)) {
-            return;
-        }
+            final Sign sign = (Sign) block.getState();
 
-        final Sign sign = (Sign) block.getState();
+            if (queue.isRemoved()) {
+                sign.setType(Material.AIR);
+                sign.update();
+                return;
+            }
 
-        if (queue.isRemoved()) {
-            sign.setType(Material.AIR);
+            final int inQueue = queue.getPlayers().size();
+            final long inMatch = queue.getPlayersInMatch();
+
+            if (lastInQueue == inQueue && lastInMatch == inMatch) {
+                return;
+            }
+
+            this.lastInQueue = inQueue;
+            this.lastInMatch = inMatch;
+
+            sign.setLine(0, replace(lines[0], inQueue, inMatch));
+            sign.setLine(1, replace(lines[1], inQueue, inMatch));
+            sign.setLine(2, replace(lines[2], inQueue, inMatch));
+            sign.setLine(3, replace(lines[3], inQueue, inMatch));
             sign.update();
-            return;
-        }
-
-        final int inQueue = queue.getPlayers().size();
-        final long inMatch = queue.getPlayersInMatch();
-
-        if (lastInQueue == inQueue && lastInMatch == inMatch) {
-            return;
-        }
-
-        this.lastInQueue = inQueue;
-        this.lastInMatch = inMatch;
-
-        sign.setLine(0, replace(lines[0], inQueue, inMatch));
-        sign.setLine(1, replace(lines[1], inQueue, inMatch));
-        sign.setLine(2, replace(lines[2], inQueue, inMatch));
-        sign.setLine(3, replace(lines[3], inQueue, inMatch));
-        sign.update();
+        });
     }
 
     @Override

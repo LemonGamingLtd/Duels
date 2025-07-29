@@ -1,22 +1,8 @@
 package me.realized.duels.data;
 
 import com.google.common.collect.Lists;
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.IOException;
-import java.io.InputStreamReader;
-import java.io.Reader;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.Comparator;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
-import java.util.UUID;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.function.Function;
-import java.util.stream.Collectors;
 import lombok.Getter;
+import me.nahu.scheduler.wrapper.task.WrappedTask;
 import me.realized.duels.DuelsPlugin;
 import me.realized.duels.Permissions;
 import me.realized.duels.api.event.user.UserCreateEvent;
@@ -39,6 +25,22 @@ import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
+
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.IOException;
+import java.io.InputStreamReader;
+import java.io.Reader;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.Comparator;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 public class UserManagerImpl implements Loadable, Listener, UserManager {
 
@@ -63,7 +65,7 @@ public class UserManagerImpl implements Loadable, Listener, UserManager {
     private volatile TopEntry noKit;
     private final Map<Kit, TopEntry> topRatings = new ConcurrentHashMap<>();
 
-    private int topTask;
+    private WrappedTask topTask;
 
     public UserManagerImpl(final DuelsPlugin plugin) {
         this.plugin = plugin;
@@ -87,7 +89,7 @@ public class UserManagerImpl implements Loadable, Listener, UserManager {
             matchesToDisplay = 0;
         }
 
-        plugin.doAsync(() -> {
+        plugin.getScheduler().runTaskAsynchronously(() -> {
             final File[] files = folder.listFiles();
 
             if (files != null && files.length > 0) {
@@ -130,10 +132,10 @@ public class UserManagerImpl implements Loadable, Listener, UserManager {
             loaded = true;
         });
 
-        this.topTask = plugin.doSyncRepeat(() -> {
+        this.topTask = plugin.getScheduler().runTaskTimer(() -> {
             final Collection<? extends Kit> kits = plugin.getKitManager().getKits();
 
-            plugin.doAsync(() -> {
+            plugin.getScheduler().runTaskAsynchronously(() -> {
                 if (!loaded) {
                     return;
                 }
@@ -163,12 +165,14 @@ public class UserManagerImpl implements Loadable, Listener, UserManager {
                     }
                 }
             });
-        }, 20L * 5, 20L).getTaskId();
+        }, 20L * 5, 20L);
     }
 
     @Override
     public void handleUnload() {
-        plugin.cancelTask(topTask);
+        if (topTask != null) {
+            topTask.cancel();
+        }
         loaded = false;
         saveUsers(Bukkit.getOnlinePlayers());
         users.clear();
@@ -251,7 +255,7 @@ public class UserManagerImpl implements Loadable, Listener, UserManager {
 
         if (!file.exists()) {
             final UserData user = new UserData(folder, defaultRating, matchesToDisplay, player);
-            plugin.doSync(() -> Bukkit.getPluginManager().callEvent(new UserCreateEvent(user)));
+            plugin.getScheduler().runTask(() -> Bukkit.getPluginManager().callEvent(new UserCreateEvent(user)));
             return user;
         }
 
@@ -292,7 +296,7 @@ public class UserManagerImpl implements Loadable, Listener, UserManager {
     public void on(final PlayerJoinEvent event) {
         final Player player = event.getPlayer();
 
-        plugin.doSyncAfter(() -> {
+        plugin.getScheduler().runTaskLaterAtEntity(player, () -> {
             if (plugin.isUpdateAvailable() && (player.isOp() || player.hasPermission(Permissions.ADMIN))) {
                 player.sendMessage(StringUtil.color(String.format(ADMIN_UPDATE_MESSAGE, plugin.getNewVersion(), plugin.getDescription().getWebsite())));
             }
@@ -309,7 +313,7 @@ public class UserManagerImpl implements Loadable, Listener, UserManager {
             return;
         }
 
-        plugin.doAsync(() -> {
+        plugin.getScheduler().runTaskAsynchronously(() -> {
             final UserData data = tryLoad(player);
 
             if (data == null) {
@@ -328,7 +332,7 @@ public class UserManagerImpl implements Loadable, Listener, UserManager {
         final UserData user = users.remove(uuid);
 
         if (user != null) {
-            plugin.doAsync(() -> {
+            plugin.getScheduler().runTaskAsynchronously(() -> {
                 user.trySave();
 
                 // Put data back after saving to prevent concurrency issues

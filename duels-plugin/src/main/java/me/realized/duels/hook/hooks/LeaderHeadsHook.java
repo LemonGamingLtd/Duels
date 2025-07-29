@@ -23,10 +23,10 @@ public class LeaderHeadsHook extends PluginHook<DuelsPlugin> {
         this.userManager = plugin.getUserManager();
 
         // Wait for config to load
-        plugin.doSyncAfter(() -> {
+        plugin.getScheduler().runTask(() -> {
             new DuelWinsCollector(config.getLhWinsTitle(), config.getLhWinsCmd());
             new DuelLossesCollector(config.getLhLossesTitle(), config.getLhLossesCmd());
-        }, 1L);
+        });
     }
 
     public class DuelWinsCollector extends OnlineDataCollector {

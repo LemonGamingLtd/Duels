@@ -42,7 +42,7 @@ public class PotionListener implements Listener {
             return;
         }
 
-        plugin.doSync(() -> {
+        plugin.getScheduler().runTaskAtEntity(player, () -> {
             if (item.getAmount() <= 1) {
                 if (CompatUtil.isPre1_10()) {
                     player.getInventory().setItem(player.getInventory().getHeldItemSlot(), null);

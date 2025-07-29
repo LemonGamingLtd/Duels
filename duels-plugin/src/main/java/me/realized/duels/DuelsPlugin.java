@@ -1,15 +1,9 @@
 package me.realized.duels;
 
 import com.google.common.collect.Lists;
-import java.io.IOException;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
-import java.util.logging.Level;
-import java.util.stream.Collectors;
 import lombok.Getter;
+import me.nahu.scheduler.wrapper.WrappedScheduler;
+import me.nahu.scheduler.wrapper.WrappedSchedulerBuilder;
 import me.realized.duels.api.Duels;
 import me.realized.duels.api.command.SubCommand;
 import me.realized.duels.arena.ArenaManagerImpl;
@@ -59,8 +53,16 @@ import org.bukkit.command.CommandSender;
 import org.bukkit.event.HandlerList;
 import org.bukkit.event.Listener;
 import org.bukkit.plugin.java.JavaPlugin;
-import org.bukkit.scheduler.BukkitTask;
 import org.jetbrains.annotations.NotNull;
+
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.logging.Level;
+import java.util.stream.Collectors;
 
 public class DuelsPlugin extends JavaPlugin implements Duels, LogSource {
 
@@ -73,6 +75,9 @@ public class DuelsPlugin extends JavaPlugin implements Duels, LogSource {
 
     private final List<Loadable> loadables = new ArrayList<>();
     private int lastLoad;
+
+    @Getter
+    private WrappedScheduler scheduler;
 
     @Getter
     private LogManager logManager;
@@ -124,6 +129,9 @@ public class DuelsPlugin extends JavaPlugin implements Duels, LogSource {
     @Override
     public void onEnable() {
         instance = this;
+        scheduler = WrappedSchedulerBuilder.builder().plugin(this).build();
+        Log.info("Successfully initialized scheduler of type: " + scheduler.getImplementationType());
+
         Log.addSource(this);
         JsonUtil.registerDeserializer(ItemData.class, ItemDataDeserializer.class);
 
@@ -353,53 +361,6 @@ public class DuelsPlugin extends JavaPlugin implements Duels, LogSource {
                 + "! If you believe this is an issue from the plugin, please contact the developer.", ex);
             return false;
         }
-    }
-
-    @Override
-    public BukkitTask doSync(@NotNull final Runnable task) {
-        Objects.requireNonNull(task, "task");
-        return Bukkit.getScheduler().runTask(this, task);
-    }
-
-    @Override
-    public BukkitTask doSyncAfter(@NotNull final Runnable task, final long delay) {
-        Objects.requireNonNull(task, "task");
-        return Bukkit.getScheduler().runTaskLater(this, task, delay);
-    }
-
-    @Override
-    public BukkitTask doSyncRepeat(@NotNull final Runnable task, final long delay, final long period) {
-        Objects.requireNonNull(task, "task");
-        return Bukkit.getScheduler().runTaskTimer(this, task, delay, period);
-    }
-
-    @Override
-    public BukkitTask doAsync(@NotNull final Runnable task) {
-        Objects.requireNonNull(task, "task");
-        return Bukkit.getScheduler().runTaskAsynchronously(this, task);
-    }
-
-    @Override
-    public BukkitTask doAsyncAfter(@NotNull final Runnable task, final long delay) {
-        Objects.requireNonNull(task, "task");
-        return Bukkit.getScheduler().runTaskLaterAsynchronously(this, task, delay);
-    }
-
-    @Override
-    public BukkitTask doAsyncRepeat(@NotNull final Runnable task, final long delay, final long period) {
-        Objects.requireNonNull(task, "task");
-        return Bukkit.getScheduler().runTaskTimerAsynchronously(this, task, delay, period);
-    }
-
-    @Override
-    public void cancelTask(@NotNull final BukkitTask task) {
-        Objects.requireNonNull(task, "task");
-        task.cancel();
-    }
-
-    @Override
-    public void cancelTask(final int id) {
-        Bukkit.getScheduler().cancelTask(id);
     }
 
     @Override

@@ -67,7 +67,7 @@ public class PlayerInfoManager implements Loadable {
         this.config = plugin.getConfiguration();
         this.cacheFile = new File(plugin.getDataFolder(), CACHE_FILE_NAME);
         this.lobbyFile = new File(plugin.getDataFolder(), LOBBY_FILE_NAME);
-        plugin.doSyncAfter(() -> Bukkit.getPluginManager().registerEvents(new PlayerInfoListener(), plugin), 1L);
+        plugin.getScheduler().runTaskLater(() -> Bukkit.getPluginManager().registerEvents(new PlayerInfoListener(), plugin), 1L);
     }
 
     @Override
@@ -237,7 +237,7 @@ public class PlayerInfoManager implements Loadable {
                 essentials.setBackLocation(player, event.getRespawnLocation());
             }
 
-            plugin.doSyncAfter(() -> {
+            plugin.getScheduler().runTaskLater(() -> {
                 // Do not remove cached data if player left while respawning.
                 if (!player.isOnline()) {
                     return;

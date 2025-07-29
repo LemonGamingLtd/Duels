@@ -10,6 +10,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+
+import me.nahu.scheduler.wrapper.task.WrappedTask;
 import me.realized.duels.DuelsPlugin;
 import me.realized.duels.api.event.match.MatchEndEvent.Reason;
 import me.realized.duels.api.event.match.MatchStartEvent;
@@ -97,7 +99,7 @@ public class DuelManager implements Loadable {
     private WorldGuardHook worldGuard;
     private MyPetHook myPet;
 
-    private int durationCheckTask;
+    private WrappedTask durationCheckTask;
 
     public DuelManager(final DuelsPlugin plugin) {
         this.plugin = plugin;
@@ -108,7 +110,7 @@ public class DuelManager implements Loadable {
         this.playerManager = plugin.getPlayerManager();
         this.inventoryManager = plugin.getInventoryManager();
 
-        plugin.doSyncAfter(() -> Bukkit.getPluginManager().registerEvents(new DuelListener(), plugin), 1L);
+        plugin.getScheduler().runTaskLater(() -> Bukkit.getPluginManager().registerEvents(new DuelListener(), plugin), 1L);
     }
 
     @Override
@@ -125,7 +127,7 @@ public class DuelManager implements Loadable {
         this.myPet = plugin.getHookManager().getHook(MyPetHook.class);
 
         if (config.getMaxDuration() > 0) {
-            this.durationCheckTask = plugin.doSyncRepeat(() -> {
+            this.durationCheckTask = plugin.getScheduler().runTaskTimer(() -> {
                 for (final ArenaImpl arena : arenaManager.getArenasImpl()) {
                     final MatchImpl match = arena.getMatch();
 
@@ -141,13 +143,15 @@ public class DuelManager implements Loadable {
 
                     arena.endMatch(null, null, Reason.MAX_TIME_REACHED);
                 }
-            }, 0L, 20L).getTaskId();
+            }, 0L, 20L);
         }
     }
 
     @Override
     public void handleUnload() {
-        plugin.cancelTask(durationCheckTask);
+        if (durationCheckTask != null) {
+            durationCheckTask.cancel();
+        }
 
         /*
         3 Cases:
@@ -553,13 +557,13 @@ public class DuelManager implements Loadable {
                 return;
             }
 
-            plugin.doSyncAfter(() -> {
+            plugin.getScheduler().runTaskLaterAtEntity(player, () -> {
                 if (arena.size() == 0) {
                     match.getAllPlayers().forEach(matchPlayer -> {
                         handleTie(matchPlayer, arena, match, false);
                         lang.sendMessage(matchPlayer, "DUEL.on-end.tie");
                     });
-                    plugin.doSyncAfter(() -> handleInventories(match), 1L);
+                    plugin.getScheduler().runTaskAtEntity(player, () -> handleInventories(match));
                     arena.endMatch(null, null, Reason.TIE);
                     return;
                 }
@@ -581,8 +585,8 @@ public class DuelManager implements Loadable {
                 final long time = GREGORIAN_CALENDAR.getTimeInMillis();
                 final MatchData matchData = new MatchData(winner.getName(), player.getName(), kitName, time, duration, health);
                 handleStats(match, userDataManager.get(winner), userDataManager.get(player), matchData);
-                plugin.doSyncAfter(() -> handleInventories(match), 1L);
-                plugin.doSyncAfter(() -> {
+                plugin.getScheduler().runTaskAtEntity(player, () -> handleInventories(match));
+                plugin.getScheduler().runTaskLater(() -> {
                     handleWin(winner, player, arena, match);
 
                     if (config.isEndCommandsEnabled() && !(!match.isFromQueue() && config.isEndCommandsQueueOnly())) {

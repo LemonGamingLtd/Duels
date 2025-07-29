@@ -17,6 +17,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+
+import me.nahu.scheduler.wrapper.task.WrappedTask;
 import me.realized.duels.DuelsPlugin;
 import me.realized.duels.Permissions;
 import me.realized.duels.api.event.queue.sign.QueueSignCreateEvent;
@@ -57,7 +59,7 @@ public class QueueSignManagerImpl implements Loadable, QueueSignManager, Listene
 
     private final Map<Location, QueueSignImpl> signs = new HashMap<>();
 
-    private int updateTask;
+    private WrappedTask updateTask;
 
     public QueueSignManagerImpl(final DuelsPlugin plugin) {
         this.plugin = plugin;
@@ -88,15 +90,17 @@ public class QueueSignManagerImpl implements Loadable, QueueSignManager, Listene
 
         Log.info(this, String.format(SIGNS_LOADED, signs.size()));
 
-        this.updateTask = plugin.doSyncRepeat(() -> signs.entrySet().removeIf(entry -> {
+        this.updateTask = plugin.getScheduler().runTaskTimer(() -> signs.entrySet().removeIf(entry -> {
             entry.getValue().update();
             return entry.getValue().getQueue().isRemoved();
-        }), 20L, 20L).getTaskId();
+        }), 20L, 20L);
     }
 
     @Override
     public void handleUnload() {
-        plugin.cancelTask(updateTask);
+        if (updateTask != null) {
+            updateTask.cancel();
+        }
         signs.clear();
     }
 

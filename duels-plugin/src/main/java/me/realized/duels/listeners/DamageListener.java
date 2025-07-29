@@ -22,7 +22,7 @@ public class DamageListener implements Listener {
         this.arenaManager = plugin.getArenaManager();
 
         if (plugin.getConfiguration().isForceAllowCombat()) {
-            plugin.doSyncAfter(() -> Bukkit.getPluginManager().registerEvents(this, plugin), 1L);
+            plugin.getScheduler().runTask(() -> Bukkit.getPluginManager().registerEvents(this, plugin));
         }
     }
 

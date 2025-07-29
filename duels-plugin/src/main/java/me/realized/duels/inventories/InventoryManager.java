@@ -3,6 +3,8 @@ package me.realized.duels.inventories;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
+
+import me.nahu.scheduler.wrapper.task.WrappedTask;
 import me.realized.duels.DuelsPlugin;
 import me.realized.duels.gui.inventory.InventoryGui;
 import me.realized.duels.util.Loadable;
@@ -15,7 +17,7 @@ public class InventoryManager implements Loadable {
     private final GuiListener<DuelsPlugin> guiListener;
     private final Map<UUID, InventoryGui> inventories = new HashMap<>();
 
-    private int expireTask;
+    private WrappedTask expireTask;
 
     public InventoryManager(final DuelsPlugin plugin) {
         this.plugin = plugin;
@@ -24,7 +26,7 @@ public class InventoryManager implements Loadable {
 
     @Override
     public void handleLoad() {
-        this.expireTask = plugin.doSyncRepeat(() -> {
+        this.expireTask = plugin.getScheduler().runTaskTimer(() -> {
             final long now = System.currentTimeMillis();
 
             inventories.entrySet().removeIf(entry -> {
@@ -35,12 +37,14 @@ public class InventoryManager implements Loadable {
 
                 return false;
             });
-        }, 20L, 20L * 5).getTaskId();
+        }, 20L, 20L * 5);
     }
 
     @Override
     public void handleUnload() {
-        plugin.cancelTask(expireTask);
+        if (expireTask != null) {
+            expireTask.cancel();
+        }
         inventories.clear();
     }
 
