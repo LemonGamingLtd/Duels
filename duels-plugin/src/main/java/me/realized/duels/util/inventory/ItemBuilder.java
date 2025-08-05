@@ -86,11 +86,7 @@ public final class ItemBuilder {
 
     public ItemBuilder unbreakable() {
         return editMeta(meta -> {
-            if (CompatUtil.isPre1_12()) {
-                meta.spigot().setUnbreakable(true);
-            } else {
                 meta.setUnbreakable(true);
-            }
         });
     }
 

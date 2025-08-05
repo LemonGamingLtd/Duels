@@ -13,7 +13,7 @@ public class LobbyCommand extends BaseCommand {
 
     @Override
     protected void execute(final CommandSender sender, final String label, final String[] args) {
-        ((Player) sender).teleport(playerManager.getLobby());
+        ((Player) sender).teleportAsync(playerManager.getLobby());
         lang.sendMessage(sender, "COMMAND.duels.lobby");
     }
 }

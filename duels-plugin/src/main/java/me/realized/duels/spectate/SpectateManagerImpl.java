@@ -174,11 +174,7 @@ public class SpectateManagerImpl implements Loadable, SpectateManager {
             player.setGameMode(GameMode.SPECTATOR);
         }
 
-        if (CompatUtil.hasSetCollidable()) {
-            player.setCollidable(false);
-        } else {
-            player.spigot().setCollidesWithEntities(false);
-        }
+        player.setCollidable(false);
 
         if (config.isSpecAddInvisibilityEffect()) {
             player.addPotionEffect(new PotionEffect(PotionEffectType.INVISIBILITY, Integer.MAX_VALUE, 1, false, false));
@@ -206,11 +202,7 @@ public class SpectateManagerImpl implements Loadable, SpectateManager {
         player.setAllowFlight(false);
         PlayerUtil.reset(player);
 
-        if (CompatUtil.hasSetCollidable()) {
-            player.setCollidable(true);
-        } else {
-            player.spigot().setCollidesWithEntities(true);
-        }
+        player.setCollidable(true);
 
         final PlayerInfo info = playerManager.remove(player);
 

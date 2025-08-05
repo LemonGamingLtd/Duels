@@ -40,7 +40,7 @@ public class TeleportCommand extends BaseCommand {
             return;
         }
 
-        ((Player) sender).teleport(location);
+        ((Player) sender).teleportAsync(location);
         lang.sendMessage(sender, "COMMAND.duels.teleport", "name", name, "position", pos);
     }
 

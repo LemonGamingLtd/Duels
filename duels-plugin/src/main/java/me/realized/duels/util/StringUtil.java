@@ -79,34 +79,18 @@ public final class StringUtil {
 
     // In some versions of spigot, commons-lang3 is not available
     public static String join(final Object[] array, final String separator, final int startIndex, final int endIndex) {
-        if (COMMONS_LANG3) {
-            return org.apache.commons.lang3.StringUtils.join(array, separator, startIndex, endIndex);
-        } else {
-            return org.apache.commons.lang.StringUtils.join(array, separator, startIndex, endIndex);
-        }
+        return org.apache.commons.lang3.StringUtils.join(array, separator, startIndex, endIndex);
     }
 
     public static String join(final Collection<?> collection, final String separator) {
-        if (COMMONS_LANG3) {
-            return org.apache.commons.lang3.StringUtils.join(collection, separator);
-        } else {
-            return org.apache.commons.lang.StringUtils.join(collection, separator);
-        }
+        return org.apache.commons.lang3.StringUtils.join(collection, separator);
     }
 
     public static String capitalize(final String s) {
-        if (COMMONS_LANG3) {
-            return org.apache.commons.lang3.StringUtils.capitalize(s);
-        } else {
-            return org.apache.commons.lang.StringUtils.capitalize(s);
-        }
+        return org.apache.commons.lang3.StringUtils.capitalize(s);
     }
 
     public static boolean containsIgnoreCase(final String str, final String searchStr) {
-        if (COMMONS_LANG3) {
-            return org.apache.commons.lang3.StringUtils.containsIgnoreCase(str, searchStr);
-        } else {
-            return org.apache.commons.lang.StringUtils.containsIgnoreCase(str, searchStr);
-        }
+        return org.apache.commons.lang3.StringUtils.containsIgnoreCase(str, searchStr);
     }
 }

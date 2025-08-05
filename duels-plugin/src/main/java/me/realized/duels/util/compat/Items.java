@@ -44,7 +44,7 @@ public final class Items {
         EMPTY_MAP = CompatUtil.isPre1_13() ? Material.matchMaterial("EMPTY_MAP") : Material.MAP;
         SIGN = CompatUtil.isPre1_14() ? Material.matchMaterial("SIGN") : Material.OAK_SIGN;
         HEAL_SPLASH_POTION = (CompatUtil.isPre1_9() ? ItemBuilder.of(Material.POTION, 1, (short) 16421) : ItemBuilder.of(Material.SPLASH_POTION).potion(
-            PotionType.INSTANT_HEAL, false, true)).build();
+            PotionType.HEALING, false, true)).build();
         WATER_BREATHING_POTION = (CompatUtil.isPre1_9() ? ItemBuilder.of(Material.POTION, 1, (short) 8237) : ItemBuilder.of(Material.POTION).potion(
             PotionType.WATER_BREATHING, false, false)).build();
         ENCHANTED_GOLDEN_APPLE = CompatUtil.isPre1_13() ?
@@ -96,7 +96,7 @@ public final class Items {
         }
 
         final PotionMeta meta = (PotionMeta) item.getItemMeta();
-        return meta != null && meta.getBasePotionData().getType() == PotionType.INSTANT_HEAL;
+        return meta != null && meta.getBasePotionData().getType() == PotionType.HEALING;
     }
 
     private Items() {}
