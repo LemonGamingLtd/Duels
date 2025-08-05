@@ -18,6 +18,7 @@ import me.realized.duels.api.event.arena.ArenaSetPositionEvent;
 import me.realized.duels.api.event.arena.ArenaStateChangeEvent;
 import me.realized.duels.api.event.match.MatchEndEvent;
 import me.realized.duels.api.event.match.MatchEndEvent.Reason;
+import me.realized.duels.data.LocationData;
 import me.realized.duels.gui.BaseButton;
 import me.realized.duels.kit.KitImpl;
 import me.realized.duels.queue.Queue;
@@ -42,7 +43,7 @@ public class ArenaImpl extends BaseButton implements Arena {
     @Getter
     private final Set<KitImpl> kits = new HashSet<>();
     @Getter
-    private final Map<Integer, Location> positions = new HashMap<>();
+    private final Map<Integer, LocationData> positions = new HashMap<>();
     @Getter
     private MatchImpl match;
     @Getter(value = AccessLevel.PACKAGE)
@@ -75,7 +76,7 @@ public class ArenaImpl extends BaseButton implements Arena {
     @Nullable
     @Override
     public Location getPosition(final int pos) {
-        return positions.get(pos);
+        return positions.get(pos).toLocation();
     }
 
     @Override
@@ -93,7 +94,7 @@ public class ArenaImpl extends BaseButton implements Arena {
             return false;
         }
 
-        positions.put(pos, location);
+        positions.put(pos, LocationData.fromLocation(location));
         arenaManager.saveArenas();
         refreshGui(isAvailable());
         return true;

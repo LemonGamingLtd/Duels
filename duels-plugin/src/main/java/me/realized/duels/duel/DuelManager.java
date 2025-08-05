@@ -20,6 +20,7 @@ import me.realized.duels.arena.ArenaManagerImpl;
 import me.realized.duels.arena.MatchImpl;
 import me.realized.duels.config.Config;
 import me.realized.duels.config.Lang;
+import me.realized.duels.data.LocationData;
 import me.realized.duels.data.MatchData;
 import me.realized.duels.data.UserData;
 import me.realized.duels.data.UserManagerImpl;
@@ -404,7 +405,7 @@ public class DuelManager implements Loadable {
         return user != null ? user.getRating(kit) : config.getDefaultRating();
     }
 
-    private void addPlayers(final MatchImpl match, final ArenaImpl arena, final KitImpl kit, final Map<Integer, Location> locations, final Player... players) {
+    private void addPlayers(final MatchImpl match, final ArenaImpl arena, final KitImpl kit, final Map<Integer, LocationData> locations, final Player... players) {
         int position = 0;
 
         for (final Player player : players) {
@@ -419,7 +420,7 @@ public class DuelManager implements Loadable {
 
             player.closeInventory();
             playerManager.create(player, match.isOwnInventory() && config.isOwnInventoryDropInventoryItems());
-            teleport.tryTeleport(player, locations.get(++position));
+            teleport.tryTeleport(player, locations.get(++position).toLocation());
 
             if (kit != null) {
                 PlayerUtil.reset(player);
