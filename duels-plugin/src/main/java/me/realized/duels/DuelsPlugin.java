@@ -194,7 +194,7 @@ public class DuelsPlugin extends JavaPlugin implements Duels, LogSource {
         new KitOptionsListener(this);
         new LingerPotionListener(this);
 
-        new Metrics(this, BSTATS_ID);
+        //new Metrics(this, BSTATS_ID);
 
         if (!configuration.isCheckForUpdates()) {
             return;

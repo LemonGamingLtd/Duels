@@ -6,6 +6,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+
+import me.nahu.scheduler.wrapper.runnable.WrappedRunnable;
 import me.realized.duels.DuelsPlugin;
 import me.realized.duels.duel.DuelManager;
 import me.realized.duels.gui.betting.buttons.CancelButton;
@@ -30,7 +32,6 @@ import org.bukkit.event.inventory.InventoryCloseEvent;
 import org.bukkit.event.inventory.InventoryDragEvent;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
-import org.bukkit.scheduler.BukkitRunnable;
 
 public class BettingGui extends AbstractGui<DuelsPlugin> {
 
@@ -85,7 +86,7 @@ public class BettingGui extends AbstractGui<DuelsPlugin> {
         }
 
         if (firstReady && secondReady) {
-            new WaitTask().runTaskTimer(plugin, 10L, 20L);
+            new WaitTask().runTaskTimer(plugin.getScheduler(), 10L, 20L);
         }
     }
 
@@ -250,7 +251,7 @@ public class BettingGui extends AbstractGui<DuelsPlugin> {
         }
     }
 
-    private class WaitTask extends BukkitRunnable {
+    private class WaitTask extends WrappedRunnable {
 
         private static final int SLOT_START = 13;
 

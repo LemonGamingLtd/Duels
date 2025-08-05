@@ -4,14 +4,15 @@ import com.google.common.collect.Lists;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+
+import me.nahu.scheduler.wrapper.runnable.WrappedRunnable;
 import me.realized.duels.DuelsPlugin;
 import me.realized.duels.config.Config;
 import me.realized.duels.util.StringUtil;
 import me.realized.duels.util.compat.Titles;
 import me.realized.duels.util.function.Pair;
-import org.bukkit.scheduler.BukkitRunnable;
 
-class Countdown extends BukkitRunnable {
+class Countdown extends WrappedRunnable {
 
     private final Config config;
     private final ArenaImpl arena;
