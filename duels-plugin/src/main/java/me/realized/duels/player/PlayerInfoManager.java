@@ -22,7 +22,6 @@ import me.realized.duels.hook.hooks.EssentialsHook;
 import me.realized.duels.teleport.Teleport;
 import me.realized.duels.util.Loadable;
 import me.realized.duels.util.Log;
-import me.realized.duels.util.PlayerUtil;
 import me.realized.duels.util.io.FileUtil;
 import me.realized.duels.util.json.JsonUtil;
 import org.bukkit.Bukkit;
@@ -113,7 +112,6 @@ public class PlayerInfoManager implements Loadable {
             if (info != null) {
                 player.spigot().respawn();
                 teleport.tryTeleport(player, info.getLocation());
-                PlayerUtil.reset(player);
                 info.restore(player);
             }
         });

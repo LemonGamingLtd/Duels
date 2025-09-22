@@ -211,14 +211,14 @@ public class DuelManager implements Loadable {
         final List<ItemStack> items = match.getItems(player);
 
         if (alive) {
-            PlayerUtil.reset(player);
-            playerManager.remove(player);
-
+            // First restore the player's original state BEFORE resetting and removing from cache
             if (info != null) {
                 teleport.tryTeleport(player, info.getLocation());
                 info.restore(player);
+                playerManager.remove(player);
             } else {
-                // If somehow PlayerInfo is not found...
+                // If somehow PlayerInfo is not found, reset and teleport to lobby
+                PlayerUtil.reset(player);
                 teleport.tryTeleport(player, playerManager.getLobby());
             }
 
@@ -265,15 +265,20 @@ public class DuelManager implements Loadable {
         final List<ItemStack> items = match.getItems();
 
         if (!player.isDead()) {
-            playerManager.remove(player);
-
-            if (!(match.isOwnInventory() && config.isOwnInventoryDropInventoryItems())) {
-                PlayerUtil.reset(player);
-            }
-
+            // First restore the player's original state BEFORE resetting and removing from cache
             if (info != null) {
                 teleport.tryTeleport(player, info.getLocation());
                 info.restore(player);
+                playerManager.remove(player);
+            } else {
+                playerManager.remove(player);
+            }
+
+            if (!(match.isOwnInventory() && config.isOwnInventoryDropInventoryItems())) {
+                // Only reset if we're not keeping own inventory items, and only after restoration
+                if (info == null) {
+                    PlayerUtil.reset(player);
+                }
             }
 
             if (InventoryUtil.addOrDrop(player, items)) {
