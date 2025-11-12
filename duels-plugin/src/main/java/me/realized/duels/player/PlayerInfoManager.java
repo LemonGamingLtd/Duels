@@ -216,7 +216,7 @@ public class PlayerInfoManager implements Loadable {
                 return;
             }
 
-            teleport.tryTeleport(player, info.getLocation());
+            //teleport.tryTeleport(player, info.getLocation());
             info.restore(player);
         }
 
