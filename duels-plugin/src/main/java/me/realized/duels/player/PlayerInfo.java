@@ -50,7 +50,9 @@ public class PlayerInfo {
     public void restore(final Player player) {
         final double maxHealth = PlayerUtil.getMaxHealth(player);
         player.addPotionEffects(effects);
-        player.setHealth(health > maxHealth ? maxHealth : health);
+        if (health > 0) {
+            player.setHealth(health > maxHealth ? maxHealth : health);
+        }
         player.setFoodLevel(hunger);
         InventoryUtil.fillFromMap(player.getInventory(), items);
         InventoryUtil.addOrDrop(player, extra);
