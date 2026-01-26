@@ -235,7 +235,7 @@ public class PlayerInfoManager implements Loadable {
                 return;
             }
 
-            plugin.getScheduler().runTaskLater(() -> {
+            plugin.getScheduler().runTaskLaterAtEntity(player, () -> {
                 // Do not remove cached data if player left while respawning.
                 if (!player.isOnline()) {
                     return;

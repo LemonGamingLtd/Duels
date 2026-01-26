@@ -592,7 +592,7 @@ public class DuelManager implements Loadable {
                 final MatchData matchData = new MatchData(winner.getName(), player.getName(), kitName, time, duration, health);
                 handleStats(match, userDataManager.get(winner), userDataManager.get(player), matchData);
                 plugin.getScheduler().runTaskAtEntity(player, () -> handleInventories(match));
-                plugin.getScheduler().runTaskLater(() -> {
+                plugin.getScheduler().runTaskLaterAtEntity(winner, () -> {
                     handleWin(winner, player, arena, match);
 
                     if (config.isEndCommandsEnabled() && !(!match.isFromQueue() && config.isEndCommandsQueueOnly())) {
