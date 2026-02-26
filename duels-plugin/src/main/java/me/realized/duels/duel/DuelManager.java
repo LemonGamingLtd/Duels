@@ -559,22 +559,39 @@ public class DuelManager implements Loadable {
             arena.remove(player);
 
             // Call end task only on the first death
-            if (arena.size() <= 0) {
+            if (arena.size() <= 0 && match.isFinished()) {
                 return;
             }
 
+            final Location arenaLocation = arena.getPosition(1);
+            final long totalFallbackDelay = 1L + (config.getTeleportDelay() * 20L) + 20L;
+
             plugin.getScheduler().runTaskLaterAtEntity(player, () -> {
+                if (match.isFinished()) {
+                    return;
+                }
+
                 if (arena.size() == 0) {
                     match.getAllPlayers().forEach(matchPlayer -> {
                         handleTie(matchPlayer, arena, match, false);
                         lang.sendMessage(matchPlayer, "DUEL.on-end.tie");
                     });
-                    plugin.getScheduler().runTaskAtEntity(player, () -> handleInventories(match));
+                    handleInventories(match);
                     arena.endMatch(null, null, Reason.TIE);
                     return;
                 }
 
                 final Player winner = arena.first();
+
+                if (winner == null || !winner.isOnline()) {
+                    match.getAllPlayers().forEach(matchPlayer -> {
+                        handleTie(matchPlayer, arena, match, false);
+                    });
+                    handleInventories(match);
+                    arena.endMatch(null, null, Reason.TIE);
+                    return;
+                }
+
                 inventoryManager.create(winner, false);
 
                 if (config.isSpawnFirework()) {
@@ -591,27 +608,61 @@ public class DuelManager implements Loadable {
                 final long time = GREGORIAN_CALENDAR.getTimeInMillis();
                 final MatchData matchData = new MatchData(winner.getName(), player.getName(), kitName, time, duration, health);
                 handleStats(match, userDataManager.get(winner), userDataManager.get(player), matchData);
-                plugin.getScheduler().runTaskAtEntity(player, () -> handleInventories(match));
-                plugin.getScheduler().runTaskLaterAtEntity(winner, () -> {
-                    handleWin(winner, player, arena, match);
+                handleInventories(match);
 
-                    if (config.isEndCommandsEnabled() && !(!match.isFromQueue() && config.isEndCommandsQueueOnly())) {
-                        try {
-                            for (final String command : config.getEndCommands()) {
-                                Bukkit.dispatchCommand(Bukkit.getConsoleSender(), command
-                                    .replace("%winner%", winner.getName()).replace("%loser%", player.getName())
-                                    .replace("%kit%", kitName).replace("%arena%", arena.getName())
-                                    .replace("%bet_amount%", String.valueOf(match.getBet()))
-                                );
+                plugin.getScheduler().runTaskLaterAtEntity(winner, () -> {
+                    if (match.isFinished()) {
+                        return;
+                    }
+
+                    if (winner.isOnline()) {
+                        handleWin(winner, player, arena, match);
+
+                        if (config.isEndCommandsEnabled() && !(!match.isFromQueue() && config.isEndCommandsQueueOnly())) {
+                            try {
+                                for (final String command : config.getEndCommands()) {
+                                    Bukkit.dispatchCommand(Bukkit.getConsoleSender(), command
+                                        .replace("%winner%", winner.getName()).replace("%loser%", player.getName())
+                                        .replace("%kit%", kitName).replace("%arena%", arena.getName())
+                                        .replace("%bet_amount%", String.valueOf(match.getBet()))
+                                    );
+                                }
+                            } catch (Exception ex) {
+                                Log.warn(DuelManager.this, "Error while running match end commands: " + ex.getMessage());
                             }
-                        } catch (Exception ex) {
-                            Log.warn(DuelManager.this, "Error while running match end commands: " + ex.getMessage());
+                        }
+
+                        arena.endMatch(winner.getUniqueId(), player.getUniqueId(), Reason.OPPONENT_DEFEAT);
+                    } else {
+                        match.getAllPlayers().forEach(matchPlayer -> {
+                            handleTie(matchPlayer, arena, match, false);
+                        });
+                        arena.endMatch(null, null, Reason.TIE);
+                    }
+                }, config.getTeleportDelay() * 20L);
+            }, 1L);
+
+            if (arenaLocation != null) {
+                plugin.getScheduler().runTaskLaterAtLocation(arenaLocation, () -> {
+                    if (match.isFinished()) {
+                        return;
+                    }
+
+                    Log.warn(DuelManager.this, "Match in arena " + arena.getName() + " was not ended by primary handler. Using fallback to release arena.");
+
+                    for (final Player matchPlayer : match.getAllPlayers()) {
+                        if (matchPlayer != null && matchPlayer.isOnline()) {
+                            plugin.getScheduler().runTaskAtEntity(matchPlayer, () -> {
+                                if (!match.isFinished()) {
+                                    handleTie(matchPlayer, arena, match, false);
+                                }
+                            });
                         }
                     }
 
-                    arena.endMatch(winner.getUniqueId(), player.getUniqueId(), Reason.OPPONENT_DEFEAT);
-                }, config.getTeleportDelay() * 20L);
-            }, 1L);
+                    arena.endMatch(null, null, Reason.TIE);
+                }, totalFallbackDelay);
+            }
         }
 
         @EventHandler(ignoreCancelled = true)
@@ -633,12 +684,50 @@ public class DuelManager implements Loadable {
         @EventHandler
         public void on(final PlayerQuitEvent event) {
             final Player player = event.getPlayer();
+            final ArenaImpl arena = arenaManager.get(player);
 
-            if (!arenaManager.isInMatch(player)) {
+            if (arena == null) {
+                return;
+            }
+
+            final MatchImpl match = arena.getMatch();
+            if (match == null || match.isFinished()) {
                 return;
             }
 
             player.setHealth(0);
+
+            final Location arenaLocation = arena.getPosition(1);
+
+            if (arenaLocation != null) {
+                plugin.getScheduler().runTaskLaterAtLocation(arenaLocation, () -> {
+                    if (match.isFinished()) {
+                        return;
+                    }
+
+                    Log.warn(DuelManager.this, "Match in arena " + arena.getName() + " was not properly ended after player quit. Forcing cleanup.");
+
+                    arena.remove(player);
+
+                    final int remainingPlayers = arena.size();
+                    final Player winner = remainingPlayers == 1 ? arena.first() : null;
+                    final UUID winnerUuid = winner != null ? winner.getUniqueId() : null;
+                    final UUID loserUuid = player.getUniqueId();
+                    final Reason endReason = winner != null ? Reason.OPPONENT_DEFEAT : Reason.TIE;
+
+                    if (remainingPlayers == 0) {
+                        for (final Player matchPlayer : match.getAllPlayers()) {
+                            if (matchPlayer != null && matchPlayer.isOnline()) {
+                                plugin.getScheduler().runTaskAtEntity(matchPlayer, () -> handleTie(matchPlayer, arena, match, false));
+                            }
+                        }
+                    } else if (winner != null && winner.isOnline()) {
+                        plugin.getScheduler().runTaskAtEntity(winner, () -> handleWin(winner, player, arena, match));
+                    }
+
+                    arena.endMatch(winnerUuid, loserUuid, endReason);
+                }, 5L);
+            }
         }
 
         @EventHandler(ignoreCancelled = true)
