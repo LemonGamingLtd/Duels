@@ -1,14 +1,26 @@
 package me.realized.duels.spectate;
 
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.google.common.base.Charsets;
 import com.google.common.collect.HashMultimap;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Multimap;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.InputStreamReader;
+import java.io.OutputStreamWriter;
+import java.io.Reader;
+import java.io.Writer;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
 import me.realized.duels.DuelsPlugin;
@@ -30,13 +42,17 @@ import me.realized.duels.player.PlayerInfoManager;
 import me.realized.duels.teleport.Teleport;
 import me.realized.duels.util.BlockUtil;
 import me.realized.duels.util.Loadable;
+import me.realized.duels.util.Log;
 import me.realized.duels.util.PlayerUtil;
+import me.realized.duels.util.io.FileUtil;
+import me.realized.duels.util.json.JsonUtil;
 import me.realized.duels.util.compat.CompatUtil;
 import org.bukkit.Bukkit;
 import org.bukkit.GameMode;
 import org.bukkit.entity.Player;
 import org.bukkit.entity.Projectile;
 import org.bukkit.event.EventHandler;
+import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.block.BlockCanBuildEvent;
 import org.bukkit.event.entity.EntityDamageByEntityEvent;
@@ -44,6 +60,7 @@ import org.bukkit.event.entity.EntityDamageEvent;
 import org.bukkit.event.player.PlayerCommandPreprocessEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.event.player.PlayerPickupItemEvent;
+import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.event.player.PlayerTeleportEvent;
 import org.bukkit.potion.PotionEffect;
@@ -53,16 +70,21 @@ import org.jetbrains.annotations.Nullable;
 
 public class SpectateManagerImpl implements Loadable, SpectateManager {
 
+    private static final String OFFLINE_SPECTATORS_FILE = "offline-spectators.json";
+
     private final DuelsPlugin plugin;
     private final Config config;
     private final Lang lang;
     private final ArenaManagerImpl arenaManager;
     private final PlayerInfoManager playerManager;
+    private final File offlineSpectatorsFile;
 
     // Map UUID to a spectator
     private final Map<UUID, SpectatorImpl> spectators = new HashMap<>();
     // Map arena to a collection of spectators
     private final Multimap<Arena, SpectatorImpl> arenas = HashMultimap.create();
+    // Track spectators who disconnected and need restoration on rejoin
+    private final Set<UUID> offlineSpectators = new HashSet<>();
 
     private Teleport teleport;
     private MyPetHook myPet;
@@ -74,21 +96,46 @@ public class SpectateManagerImpl implements Loadable, SpectateManager {
         this.lang = plugin.getLang();
         this.arenaManager = plugin.getArenaManager();
         this.playerManager = plugin.getPlayerManager();
+        this.offlineSpectatorsFile = new File(plugin.getDataFolder(), OFFLINE_SPECTATORS_FILE);
 
         Bukkit.getPluginManager().registerEvents(new SpectateListener(), plugin);
     }
 
     @Override
-    public void handleLoad() {
+    public void handleLoad() throws IOException {
         // Late-init since SpectateManager is loaded before below variables are loaded
         this.teleport = plugin.getTeleport();
         this.myPet = plugin.getHookManager().getHook(MyPetHook.class);
         this.essentials = plugin.getHookManager().getHook(EssentialsHook.class);
+
+        if (FileUtil.checkNonEmpty(offlineSpectatorsFile, false)) {
+            try (final Reader reader = new InputStreamReader(new FileInputStream(offlineSpectatorsFile), Charsets.UTF_8)) {
+                final Set<UUID> data = JsonUtil.getObjectMapper().readValue(reader, new TypeReference<HashSet<UUID>>() {});
+                if (data != null) {
+                    offlineSpectators.addAll(data);
+                }
+            } catch (IOException ex) {
+                Log.error(this, "Could not load offline spectators file!", ex);
+            }
+            offlineSpectatorsFile.delete();
+        }
     }
 
     @Override
-    public void handleUnload() {
+    public void handleUnload() throws IOException {
+        for (final UUID uuid : spectators.keySet()) {
+            offlineSpectators.add(uuid);
+        }
         spectators.clear();
+
+        if (!offlineSpectators.isEmpty()) {
+            try (final Writer writer = new OutputStreamWriter(new FileOutputStream(offlineSpectatorsFile), Charsets.UTF_8)) {
+                JsonUtil.getObjectWriter().writeValue(writer, offlineSpectators);
+                writer.flush();
+            }
+        }
+
+        offlineSpectators.clear();
     }
 
     @Nullable
@@ -297,7 +344,36 @@ public class SpectateManagerImpl implements Loadable, SpectateManager {
                 return;
             }
 
-            stopSpectating(player, spectator);
+            spectators.remove(player.getUniqueId());
+            arenas.remove(spectator.getArena(), spectator);
+            offlineSpectators.add(player.getUniqueId());
+
+            final SpectateEndEvent endEvent = new SpectateEndEvent(player, spectator);
+            Bukkit.getPluginManager().callEvent(endEvent);
+        }
+
+        @EventHandler(priority = EventPriority.HIGH)
+        public void on(final PlayerJoinEvent event) {
+            final Player player = event.getPlayer();
+
+            if (!offlineSpectators.remove(player.getUniqueId())) {
+                return;
+            }
+
+            player.setGameMode(GameMode.SURVIVAL);
+            player.setFlying(false);
+            player.setAllowFlight(false);
+            PlayerUtil.reset(player);
+            player.setCollidable(true);
+
+            final PlayerInfo info = playerManager.remove(player);
+
+            if (info != null) {
+                teleport.tryTeleport(player, info.getLocation());
+                info.restore(player);
+            } else {
+                teleport.tryTeleport(player, playerManager.getLobby());
+            }
         }
 
         @EventHandler(ignoreCancelled = true)
