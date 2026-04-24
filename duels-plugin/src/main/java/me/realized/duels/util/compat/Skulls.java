@@ -9,6 +9,7 @@ import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.concurrent.TimeUnit;
 import me.realized.duels.util.reflect.ReflectionUtil;
+import org.bukkit.OfflinePlayer;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.meta.SkullMeta;
 import org.jetbrains.annotations.NotNull;
@@ -20,7 +21,7 @@ public final class Skulls {
 
     private static final Method GET_PROFILE;
     private static final Field PROFILE;
-    private static final Method SET_PROFILE;
+    private static final Method SET_OWNING_PLAYER;
 
     private static final LoadingCache<Player, GameProfile> cache = CacheBuilder.newBuilder()
         .maximumSize(1000)
@@ -41,7 +42,7 @@ public final class Skulls {
 
         final Class<?> CB_SKULL_META = ReflectionUtil.getCBClass("inventory.CraftMetaSkull");
         PROFILE = ReflectionUtil.getDeclaredField(CB_SKULL_META, "profile");
-        SET_PROFILE = ReflectionUtil.getDeclaredMethodUnsafe(CB_SKULL_META, "setProfile", GameProfile.class);
+        SET_OWNING_PLAYER = ReflectionUtil.getMethodUnsafe(SkullMeta.class, "setOwningPlayer", OfflinePlayer.class);
     }
 
     private static GameProfile getProfile(final Player player) throws InvocationTargetException, IllegalAccessException {
@@ -55,16 +56,18 @@ public final class Skulls {
      * @param player Player to display on skull
      */
     public static void setProfile(final SkullMeta meta, final Player player) {
-        // In 1.15.2 and above, setOwningPlayer was optimized to use online player's cached GameProfile.
-        if (SET_PROFILE != null) {
-            meta.setOwningPlayer(player);
-            return;
-        }
-
-        // Caching is only used for MC versions 1.8 - 1.15.1.
         try {
-            final GameProfile cached = cache.get(player);
-            PROFILE.set(meta, cached);
+            // Older CraftBukkit versions stored the profile directly as GameProfile.
+            if (PROFILE != null && GameProfile.class.isAssignableFrom(PROFILE.getType())) {
+                final GameProfile cached = cache.get(player);
+                PROFILE.set(meta, cached);
+                return;
+            }
+
+            // Modern Paper versions expose a different internal profile type, so use the public API instead.
+            if (SET_OWNING_PLAYER != null) {
+                SET_OWNING_PLAYER.invoke(meta, player);
+            }
         } catch (Exception ex) {
             ex.printStackTrace();
         }

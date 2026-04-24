@@ -241,16 +241,20 @@ public class DuelManager implements Loadable {
      * @param match Match the player is in
      */
     private void handleWin(final Player player, final Player opponent, final ArenaImpl arena, final MatchImpl match) {
+        handleWin(player, opponent != null ? opponent.getName() : null, arena, match);
+    }
+
+    private void handleWin(final Player player, final String opponentName, final ArenaImpl arena, final MatchImpl match) {
         arena.remove(player);
 
-        final String opponentName = opponent != null ? opponent.getName() : lang.getMessage("GENERAL.none");
+        final String resolvedOpponentName = opponentName != null ? opponentName : lang.getMessage("GENERAL.none");
 
         if (vault != null && match.getBet() > 0) {
             final int amount = match.getBet() * 2;
             vault.add(amount, player);
-            lang.sendMessage(player, "DUEL.reward.money.message", "name", opponentName, "money", amount);
+            lang.sendMessage(player, "DUEL.reward.money.message", "name", resolvedOpponentName, "money", amount);
 
-            final String title = lang.getMessage("DUEL.reward.money.title", "name", opponentName, "money", amount);
+            final String title = lang.getMessage("DUEL.reward.money.title", "name", resolvedOpponentName, "money", amount);
 
             if (title != null) {
                 Titles.send(player, title, null, 0, 20, 50);
@@ -282,7 +286,7 @@ public class DuelManager implements Loadable {
             }
 
             if (InventoryUtil.addOrDrop(player, items)) {
-                lang.sendMessage(player, "DUEL.reward.items.message", "name", opponentName);
+                lang.sendMessage(player, "DUEL.reward.items.message", "name", resolvedOpponentName);
             }
         } else if (info != null) {
             info.getExtra().addAll(items);
@@ -592,54 +596,74 @@ public class DuelManager implements Loadable {
                     return;
                 }
 
-                inventoryManager.create(winner, false);
+                final String loserName = player.getName();
+                final UUID loserUuid = player.getUniqueId();
+                final UserData loserData = userDataManager.get(player);
 
-                if (config.isSpawnFirework()) {
-                    final Firework firework = (Firework) winner.getWorld().spawnEntity(winner.getEyeLocation(), EntityType.FIREWORK_ROCKET);
-                    final FireworkMeta meta = firework.getFireworkMeta();
-                    meta.setPower(0);
-                    meta.addEffect(FireworkEffect.builder().withColor(Color.RED).with(FireworkEffect.Type.BALL_LARGE).withTrail().build());
-                    firework.setFireworkMeta(meta);
-                }
-
-                final double health = Math.ceil(winner.getHealth()) * 0.5;
-                final String kitName = match.getKit() != null ? match.getKit().getName() : lang.getMessage("GENERAL.none");
-                final long duration = System.currentTimeMillis() - match.getStart();
-                final long time = GREGORIAN_CALENDAR.getTimeInMillis();
-                final MatchData matchData = new MatchData(winner.getName(), player.getName(), kitName, time, duration, health);
-                handleStats(match, userDataManager.get(winner), userDataManager.get(player), matchData);
-                handleInventories(match);
-
-                plugin.getScheduler().runTaskLaterAtEntity(winner, () -> {
+                // Switch to the winner's scheduler before accessing winner state or world APIs on Folia.
+                plugin.getScheduler().runTaskAtEntity(winner, () -> {
                     if (match.isFinished()) {
                         return;
                     }
 
-                    if (winner.isOnline()) {
-                        handleWin(winner, player, arena, match);
-
-                        if (config.isEndCommandsEnabled() && !(!match.isFromQueue() && config.isEndCommandsQueueOnly())) {
-                            try {
-                                for (final String command : config.getEndCommands()) {
-                                    Bukkit.dispatchCommand(Bukkit.getConsoleSender(), command
-                                        .replace("%winner%", winner.getName()).replace("%loser%", player.getName())
-                                        .replace("%kit%", kitName).replace("%arena%", arena.getName())
-                                        .replace("%bet_amount%", String.valueOf(match.getBet()))
-                                    );
-                                }
-                            } catch (Exception ex) {
-                                Log.warn(DuelManager.this, "Error while running match end commands: " + ex.getMessage());
-                            }
-                        }
-
-                        arena.endMatch(winner.getUniqueId(), player.getUniqueId(), Reason.OPPONENT_DEFEAT);
-                    } else {
+                    if (!winner.isOnline()) {
                         match.getAllPlayers().forEach(matchPlayer -> {
                             handleTie(matchPlayer, arena, match, false);
                         });
+                        handleInventories(match);
                         arena.endMatch(null, null, Reason.TIE);
+                        return;
                     }
-                }, config.getTeleportDelay() * 20L);
+
+                    inventoryManager.create(winner, false);
+
+                    if (config.isSpawnFirework()) {
+                        final Firework firework = (Firework) winner.getWorld().spawnEntity(winner.getEyeLocation(), EntityType.FIREWORK_ROCKET);
+                        final FireworkMeta meta = firework.getFireworkMeta();
+                        meta.setPower(0);
+                        meta.addEffect(FireworkEffect.builder().withColor(Color.RED).with(FireworkEffect.Type.BALL_LARGE).withTrail().build());
+                        firework.setFireworkMeta(meta);
+                    }
+
+                    final double health = Math.ceil(winner.getHealth()) * 0.5;
+                    final String kitName = match.getKit() != null ? match.getKit().getName() : lang.getMessage("GENERAL.none");
+                    final long duration = System.currentTimeMillis() - match.getStart();
+                    final long time = GREGORIAN_CALENDAR.getTimeInMillis();
+                    final MatchData matchData = new MatchData(winner.getName(), loserName, kitName, time, duration, health);
+                    handleStats(match, userDataManager.get(winner), loserData, matchData);
+                    handleInventories(match);
+
+                    plugin.getScheduler().runTaskLaterAtEntity(winner, () -> {
+                        if (match.isFinished()) {
+                            return;
+                        }
+
+                        if (winner.isOnline()) {
+                            handleWin(winner, loserName, arena, match);
+
+                            if (config.isEndCommandsEnabled() && !(!match.isFromQueue() && config.isEndCommandsQueueOnly())) {
+                                try {
+                                    for (final String command : config.getEndCommands()) {
+                                        Bukkit.dispatchCommand(Bukkit.getConsoleSender(), command
+                                            .replace("%winner%", winner.getName()).replace("%loser%", loserName)
+                                            .replace("%kit%", kitName).replace("%arena%", arena.getName())
+                                            .replace("%bet_amount%", String.valueOf(match.getBet()))
+                                        );
+                                    }
+                                } catch (Exception ex) {
+                                    Log.warn(DuelManager.this, "Error while running match end commands: " + ex.getMessage());
+                                }
+                            }
+
+                            arena.endMatch(winner.getUniqueId(), loserUuid, Reason.OPPONENT_DEFEAT);
+                        } else {
+                            match.getAllPlayers().forEach(matchPlayer -> {
+                                handleTie(matchPlayer, arena, match, false);
+                            });
+                            arena.endMatch(null, null, Reason.TIE);
+                        }
+                    }, config.getTeleportDelay() * 20L);
+                });
             }, 1L);
 
             if (arenaLocation != null) {
