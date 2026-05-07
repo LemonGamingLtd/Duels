@@ -1,11 +1,12 @@
 package me.realized.duels.util.reflect;
 
-import java.lang.reflect.Constructor;
-import java.lang.reflect.Field;
-import java.lang.reflect.Method;
 import me.realized.duels.util.Log;
 import me.realized.duels.util.NumberUtil;
 import org.bukkit.Bukkit;
+
+import java.lang.reflect.Constructor;
+import java.lang.reflect.Field;
+import java.lang.reflect.Method;
 
 public final class ReflectionUtil {
 
@@ -16,8 +17,11 @@ public final class ReflectionUtil {
         final String packageName = Bukkit.getServer().getClass().getPackage().getName();
         PACKAGE_VERSION = packageName.substring(packageName.lastIndexOf('.') + 1);
         if (PACKAGE_VERSION.equalsIgnoreCase("craftbukkit")) {
-            String bukkitVersion = Bukkit.getBukkitVersion();
-            MAJOR_VERSION = NumberUtil.parseInt(bukkitVersion.split("-")[0].split("\\.")[1]).orElse(0);
+            final String bukkitVersion = Bukkit.getBukkitVersion();
+            final String[] fullBukkitVersion = bukkitVersion.split("-")[0].split("\\.");
+            MAJOR_VERSION = fullBukkitVersion[0].startsWith("1") ?
+                NumberUtil.parseInt(fullBukkitVersion[1].substring(1)).orElse(0) : // 1.xx.xx
+                NumberUtil.parseInt(fullBukkitVersion[0]).orElse(0); // 26.x fix
         } else {
             MAJOR_VERSION = NumberUtil.parseInt(PACKAGE_VERSION.split("_")[1]).orElse(0);
         }
@@ -61,9 +65,9 @@ public final class ReflectionUtil {
 
     public static Class<?> getCBClass(final String path, final boolean logError) {
         try {
-        	if (getMajorVersion() >= 21) {
-        		return Class.forName("org.bukkit.craftbukkit." + path);
-        	}
+            if (getMajorVersion() >= 21) {
+                return Class.forName("org.bukkit.craftbukkit." + path);
+            }
             return Class.forName("org.bukkit.craftbukkit." + PACKAGE_VERSION + "." + path);
         } catch (ClassNotFoundException ex) {
             if (logError) {
@@ -139,5 +143,6 @@ public final class ReflectionUtil {
         }
     }
 
-    private ReflectionUtil() {}
+    private ReflectionUtil() {
+    }
 }

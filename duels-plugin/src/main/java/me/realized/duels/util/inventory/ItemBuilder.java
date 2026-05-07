@@ -28,6 +28,9 @@ public final class ItemBuilder {
     private final ItemStack result;
 
     private ItemBuilder(final Material type, final int amount, final short durability) {
+        if (type == null || !type.isItem()) {
+            throw new IllegalArgumentException("Material must be an item!");
+        }
         this.result = new ItemStack(type, amount);
         Items.setDurability(result, durability);
     }
