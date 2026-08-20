@@ -30,7 +30,7 @@ dependencies {
     }
     implementation name: 'Vault-1.6.7'
     implementation name: 'CombatTagPlus'
-    implementation name: 'PvPManager-3.7.16'
+    implementation 'me.chancesd.pvpmanager:pvpmanager:4.0.9'
     implementation name: 'Factions-1.6.9.5-U0.1.14'
     implementation name: 'MassiveCore'
     implementation name: 'Factions'

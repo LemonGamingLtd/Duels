@@ -1,9 +1,10 @@
 package me.realized.duels.hook.hooks;
 
-import me.NoChance.PvPManager.Events.PlayerTagEvent;
-import me.NoChance.PvPManager.Managers.PlayerHandler;
-import me.NoChance.PvPManager.PvPManager;
-import me.NoChance.PvPManager.PvPlayer;
+import me.chancesd.pvpmanager.PvPManager;
+import me.chancesd.pvpmanager.event.PlayerTagEvent;
+import me.chancesd.pvpmanager.manager.PlayerManager;
+import me.chancesd.pvpmanager.player.CombatPlayer;
+import me.chancesd.pvpmanager.player.UntagReason;
 import me.realized.duels.DuelsPlugin;
 import me.realized.duels.arena.ArenaManagerImpl;
 import me.realized.duels.config.Config;
@@ -26,7 +27,7 @@ public class PvPManagerHook extends PluginHook<DuelsPlugin> {
         this.arenaManager = plugin.getArenaManager();
 
         try {
-            Class.forName("me.NoChance.PvPManager.Events.PlayerTagEvent");
+            Class.forName("me.chancesd.pvpmanager.event.PlayerTagEvent");
         } catch (ClassNotFoundException ex) {
             throw new RuntimeException("This version of " + getName() + " is not supported. Please try upgrading to the latest version.");
         }
@@ -35,25 +36,25 @@ public class PvPManagerHook extends PluginHook<DuelsPlugin> {
     }
 
     public boolean isTagged(final Player player) {
-        final PlayerHandler playerHandler = ((PvPManager) getPlugin()).getPlayerHandler();
+        final PlayerManager playerHandler = ((PvPManager) getPlugin()).getPlayerManager();
         if (playerHandler == null) {
             return false;
         }
 
-        final PvPlayer pvPlayer = playerHandler.get(player);
+        final CombatPlayer pvPlayer = playerHandler.get(player);
         return pvPlayer != null && pvPlayer.isInCombat();
     }
 
     public void untag(final Player player) {
-        final PlayerHandler playerHandler = ((PvPManager) getPlugin()).getPlayerHandler();
+        final PlayerManager playerHandler = ((PvPManager) getPlugin()).getPlayerManager();
         if (playerHandler == null) {
             return;
         }
-        final PvPlayer pvPlayer = playerHandler.get(player);
+        final CombatPlayer pvPlayer = playerHandler.get(player);
         if (pvPlayer == null) {
             return;
         }
-        playerHandler.untag(pvPlayer);
+        pvPlayer.untag(UntagReason.PLUGIN_API);
     }
 
     public class PvPManagerListener implements Listener {
