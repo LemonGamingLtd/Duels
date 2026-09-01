@@ -51,18 +51,24 @@ public final class Teleport implements Loadable, Listener {
             return;
         }
 
-        if (essentials != null) {
-            essentials.setBackLocation(player, location);
-        }
+        final Location target = location.clone();
 
-        MetadataUtil.put(plugin, player, METADATA_KEY, location.clone());
-
-        player.teleportAsync(location).thenAccept(result -> {
-            if (result) {
-                return;
+        // Starting a cross-world teleport can immediately retire Folia's current entity handle.
+        // Defer it until the caller has finished any state restoration in the current entity task.
+        plugin.getScheduler().runTaskLaterAtEntity(player, () -> {
+            if (essentials != null) {
+                essentials.setBackLocation(player, target);
             }
-            Log.warn(this, "Could not teleport " + player.getName() + "! Player is dead or is vehicle");
-        });
+
+            MetadataUtil.put(plugin, player, METADATA_KEY, target.clone());
+
+            player.teleportAsync(target).thenAccept(result -> {
+                if (result) {
+                    return;
+                }
+                Log.warn(this, "Could not teleport " + player.getName() + "! Player is dead or is vehicle");
+            });
+        }, 1L);
     }
 
     @EventHandler(priority = EventPriority.MONITOR)
