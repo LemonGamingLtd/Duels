@@ -51,6 +51,8 @@ public final class Teleport implements Loadable, Listener {
             return;
         }
 
+        player.eject();
+
         final Location target = location.clone();
 
         // Starting a cross-world teleport can immediately retire Folia's current entity handle.
