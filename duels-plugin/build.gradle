@@ -5,6 +5,7 @@ clean.doFirst {
 }
 
 processResources {
+    inputs.property("pluginVersion", project.version)
     duplicatesStrategy = DuplicatesStrategy.INCLUDE
 
     from(sourceSets.main.resources.srcDirs) {

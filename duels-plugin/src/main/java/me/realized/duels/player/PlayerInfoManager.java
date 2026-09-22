@@ -20,8 +20,10 @@ import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
-import org.bukkit.event.inventory.InventoryCloseEvent;
-import org.bukkit.event.inventory.InventoryType;
+import org.bukkit.event.entity.PlayerDeathEvent;
+import org.bukkit.event.player.PlayerRespawnEvent;
+import org.bukkit.event.player.PlayerQuitEvent;
+import me.realized.duels.util.compat.RespawnUtil;
 import org.bukkit.event.player.PlayerJoinEvent;
 
 import java.io.File;
@@ -35,6 +37,7 @@ import java.io.Writer;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * Manages:
@@ -55,7 +58,8 @@ public class PlayerInfoManager implements Loadable {
     private final File cacheFile;
     private final File lobbyFile;
 
-    private final Map<UUID, PlayerInfo> cache = new HashMap<>();
+    private final Map<UUID, PlayerInfo> cache = new ConcurrentHashMap<>();
+    private final Map<UUID, Player> respawning = new ConcurrentHashMap<>();
 
     private Teleport teleport;
     private EssentialsHook essentials;
@@ -109,16 +113,7 @@ public class PlayerInfoManager implements Loadable {
 
     @Override
     public void handleUnload() throws IOException {
-        Bukkit.getOnlinePlayers().stream().filter(Player::isDead).forEach(player -> {
-            final PlayerInfo info = remove(player);
-
-            if (info != null) {
-                player.spigot().respawn();
-                teleport.tryTeleport(player, info.getLocation());
-                info.restore(player);
-            }
-        });
-
+        // Persist pending recoveries; respawning during plugin shutdown is unsafe on Folia.
         if (cache.isEmpty()) {
             return;
         }
@@ -202,48 +197,77 @@ public class PlayerInfoManager implements Loadable {
         return cache.remove(player.getUniqueId());
     }
 
+    /** Must run on the player's entity scheduler. Explicit recovery also supports lost caches. */
+    public void recover(final Player player, final boolean explicit) {
+        if (!player.isOnline() || plugin.getArenaManager().isInMatch(player)
+            || (!explicit && get(player) == null) || respawning.containsKey(player.getUniqueId())) {
+            return;
+        }
+        if (!player.isDead()) {
+            restoreAfterRespawn(player, explicit);
+            return;
+        }
+        if (respawning.putIfAbsent(player.getUniqueId(), player) != null) {
+            return;
+        }
+        try {
+            RespawnUtil.respawn(player, () -> {
+                respawning.remove(player.getUniqueId(), player);
+                restoreAfterRespawn(player, explicit);
+            });
+        } catch (ReflectiveOperationException | RuntimeException ex) {
+            respawning.remove(player.getUniqueId(), player);
+            plugin.getLogger().log(java.util.logging.Level.SEVERE,
+                "Could not respawn " + player.getName() + "; saved duel data retained", ex);
+        }
+    }
+
+    private void restoreAfterRespawn(final Player player, final boolean explicit) {
+        if (!player.isOnline() || player.isDead() || plugin.getArenaManager().isInMatch(player)) {
+            return;
+        }
+        final PlayerInfo info = get(player);
+        if (info != null) {
+            info.restore(player);
+            cache.remove(player.getUniqueId(), info);
+            teleport.tryTeleport(player, info.getLocation());
+        } else if (explicit) {
+            // An admin may recover an orphaned death after a restart without changing inventory.
+            teleport.tryTeleport(player, lobby);
+        }
+    }
+
     private class PlayerInfoListener implements Listener {
 
-        // Handles case of some players causing respawn to skip somehow.
-        @EventHandler(priority = EventPriority.HIGHEST)
+        @EventHandler(priority = EventPriority.MONITOR)
         public void on(final PlayerJoinEvent event) {
             final Player player = event.getPlayer();
-
-            if (player.isDead()) {
-                return;
-            }
-
-            final PlayerInfo info = remove(player);
-
-            if (info == null) {
-                return;
-            }
-
-            //teleport.tryTeleport(player, info.getLocation());
-            info.restore(player);
+            plugin.getScheduler().runTaskLaterAtEntity(player, () -> recover(player, false), 1L);
         }
 
-        @EventHandler(priority = EventPriority.HIGHEST)
-        public void onPlayerRespawn(final InventoryCloseEvent event) {
-            final Player player = (Player) event.getPlayer();
-            if (event.getInventory().getType() != InventoryType.CRAFTING || !player.isDead() || !player.isOnline() || player.getHealth() > 0) {
-                return;
+        @EventHandler(priority = EventPriority.MONITOR)
+        public void on(final PlayerDeathEvent event) {
+            final Player player = event.getEntity();
+            if (get(player) != null) {
+                // Finish death processing before requesting respawn. Disconnected players recover on join.
+                plugin.getScheduler().runTaskLaterAtEntity(player, () -> recover(player, false), 2L);
             }
+        }
 
-            final PlayerInfo info = get(player);
-            if (info == null) {
-                return;
-            }
-
+        @EventHandler(priority = EventPriority.MONITOR)
+        public void on(final PlayerRespawnEvent event) {
+            final Player player = event.getPlayer();
+            // The event fires before the player is alive and placed in the destination region.
             plugin.getScheduler().runTaskLaterAtEntity(player, () -> {
-                // Do not remove cached data if player left while respawning.
-                if (!player.isOnline()) {
-                    return;
+                if (!respawning.containsKey(player.getUniqueId())) {
+                    restoreAfterRespawn(player, false);
                 }
-
-                remove(player);
-                info.restore(player);
             }, 1L);
+        }
+
+        @EventHandler(priority = EventPriority.MONITOR)
+        public void on(final PlayerQuitEvent event) {
+            respawning.remove(event.getPlayer().getUniqueId(), event.getPlayer());
         }
     }
 }

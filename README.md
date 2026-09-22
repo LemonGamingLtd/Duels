@@ -65,3 +65,10 @@ public void onEnable() {
   Duels api = (Duels) Bukkit.getServer().getPluginManager().getPlugin("Duels");
 }
 ```
+### Stranded player recovery (3.5.6)
+
+Pending duel state is restored after respawn, including when a player disconnects during death and rejoins. On Folia, recovery uses the server's asynchronous respawn path on the player's entity scheduler. Failed respawn requests retain the saved duel state and are logged.
+
+For a player stranded after an earlier incident, run `duels recover .xFlame_Craftx` from the survival server console while they are online, or `/duels recover .xFlame_Craftx` as an administrator (`duels.admin`). This requests respawn if dead, restores cached duel state when available, and teleports to the saved return location. If no cache remains, it leaves inventory alone and uses the Duels lobby. It refuses players still registered in an active match. Set the lobby using `/duels setlobby`; otherwise the default world spawn is used.
+
+Install the built `out/Duels-3.5.6.jar` with a normal server stop/start. Do not hot-reload the plugin during matches.

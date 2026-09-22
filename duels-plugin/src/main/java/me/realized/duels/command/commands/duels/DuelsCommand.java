@@ -3,6 +3,7 @@ package me.realized.duels.command.commands.duels;
 import me.realized.duels.DuelsPlugin;
 import me.realized.duels.Permissions;
 import me.realized.duels.command.BaseCommand;
+import me.realized.duels.command.commands.duels.subcommands.RecoverCommand;
 import me.realized.duels.command.commands.duels.subcommands.AddsignCommand;
 import me.realized.duels.command.commands.duels.subcommands.BindCommand;
 import me.realized.duels.command.commands.duels.subcommands.CreateCommand;
@@ -37,6 +38,7 @@ public class DuelsCommand extends BaseCommand {
         super(plugin, "duels", Permissions.ADMIN, false);
         child(
             new HelpCommand(plugin),
+            new RecoverCommand(plugin),
             new SavekitCommand(plugin),
             new DeletekitCommand(plugin),
             new LoadkitCommand(plugin),
