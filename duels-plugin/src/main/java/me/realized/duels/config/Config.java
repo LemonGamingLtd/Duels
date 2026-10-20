@@ -138,6 +138,8 @@ public class Config extends AbstractConfiguration<DuelsPlugin> {
     @Getter
     private boolean preventItemPickup;
     @Getter
+    private boolean preventDurabilityLoss;
+    @Getter
     private boolean limitTeleportEnabled;
     @Getter
     private double distanceAllowed;
@@ -322,6 +324,7 @@ public class Config extends AbstractConfiguration<DuelsPlugin> {
         displayInventories = configuration.getBoolean("duel.display-inventories", true);
         preventItemDrop = configuration.getBoolean("duel.prevent-item-drop", false);
         preventItemPickup = configuration.getBoolean("duel.prevent-item-pickup", true);
+        preventDurabilityLoss = configuration.getBoolean("duel.prevent-durability-loss", true);
         limitTeleportEnabled = configuration.getBoolean("duel.limit-teleportation.enabled", true);
         distanceAllowed = configuration.getDouble("duel.limit-teleportation.distance-allowed", 5.0);
         blockAllCommands = configuration.getBoolean("duel.block-all-commands", false);

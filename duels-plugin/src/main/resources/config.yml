@@ -263,6 +263,10 @@ duel:
   # default: false
   prevent-item-pickup: false
 
+  # If set to 'true', armor, weapons and tools of players in duel will not lose durability.
+  # default: true
+  prevent-durability-loss: true
+
   limit-teleportation:
     # If set to 'true', teleportation while in duel will be limited to the distance specified below.
     # NOTE: Teleportation caused by an enderpearl is excluded from prevention.

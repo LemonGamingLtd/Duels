@@ -69,6 +69,7 @@ import org.bukkit.event.inventory.InventoryOpenEvent;
 import org.bukkit.event.inventory.InventoryType;
 import org.bukkit.event.player.PlayerCommandPreprocessEvent;
 import org.bukkit.event.player.PlayerDropItemEvent;
+import org.bukkit.event.player.PlayerItemDamageEvent;
 import org.bukkit.event.player.PlayerPickupItemEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.event.player.PlayerTeleportEvent;
@@ -762,6 +763,15 @@ public class DuelManager implements Loadable {
 
             event.setCancelled(true);
             lang.sendMessage(event.getPlayer(), "DUEL.prevent.item-drop");
+        }
+
+        @EventHandler(ignoreCancelled = true)
+        public void on(final PlayerItemDamageEvent event) {
+            if (!config.isPreventDurabilityLoss() || !arenaManager.isInMatch(event.getPlayer())) {
+                return;
+            }
+
+            event.setCancelled(true);
         }
 
         @EventHandler(ignoreCancelled = true)
