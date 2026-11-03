@@ -10,6 +10,7 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
 import lombok.Getter;
 import me.realized.duels.api.match.Match;
@@ -42,6 +43,9 @@ public class MatchImpl implements Match {
     // Players whose teleport into the arena went through.
     private final Set<UUID> arrived = ConcurrentHashMap.newKeySet();
 
+    // Set by whichever end-of-match handler pays out first, so winnings can't be handed out twice.
+    private final AtomicBoolean settled = new AtomicBoolean();
+
     MatchImpl(final ArenaImpl arena, final KitImpl kit, final Map<UUID, List<ItemStack>> items, final int bet, final Queue source) {
         this.arena = arena;
         this.start = System.currentTimeMillis();
@@ -73,6 +77,13 @@ public class MatchImpl implements Match {
 
     public boolean hasArrived(final Player player) {
         return arrived.contains(player.getUniqueId());
+    }
+
+    /**
+     * @return true for the first caller only
+     */
+    public boolean settle() {
+        return settled.compareAndSet(false, true);
     }
 
     public boolean isFromQueue() {

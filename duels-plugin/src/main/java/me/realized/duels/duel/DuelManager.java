@@ -692,7 +692,7 @@ public class DuelManager implements Loadable {
                     handleInventories(match);
 
                     plugin.getScheduler().runTaskLaterAtEntity(winner, () -> {
-                        if (match.isFinished()) {
+                        if (match.isFinished() || !match.settle()) {
                             return;
                         }
 
@@ -726,19 +726,29 @@ public class DuelManager implements Loadable {
 
             if (arenaLocation != null) {
                 plugin.getScheduler().runTaskLaterAtLocation(arenaLocation, () -> {
-                    if (match.isFinished()) {
+                    if (match.isFinished() || !match.settle()) {
                         return;
                     }
 
                     Log.warn(DuelManager.this, "Match in arena " + arena.getName() + " was not ended by primary handler. Using fallback to release arena.");
 
+                    // The match ends below before these tasks run, so they must not check isFinished, or nobody gets
+                    // their winnings or bet back.
+                    final Player winner = arena.size() == 1 ? arena.first() : null;
+
+                    if (winner != null && winner.isOnline()) {
+                        final Player loser = arena.getOpponent(winner);
+                        plugin.getScheduler().runTaskAtEntity(winner, () -> handleWin(winner, loser, arena, match));
+                        arena.endMatch(winner.getUniqueId(), loser != null ? loser.getUniqueId() : null, Reason.OPPONENT_DEFEAT);
+                        return;
+                    }
+
                     for (final Player matchPlayer : match.getAllPlayers()) {
                         if (matchPlayer != null && matchPlayer.isOnline()) {
-                            plugin.getScheduler().runTaskAtEntity(matchPlayer, () -> {
-                                if (!match.isFinished()) {
-                                    handleTie(matchPlayer, arena, match, false);
-                                }
-                            });
+                            // A player already restored after respawning has no PlayerInfo left, and handleTie would
+                            // reset them as if alive, wiping an own-inventory player's items.
+                            plugin.getScheduler().runTaskAtEntity(matchPlayer, () ->
+                                handleTie(matchPlayer, arena, match, !matchPlayer.isDead() && playerManager.get(matchPlayer) != null));
                         }
                     }
 
