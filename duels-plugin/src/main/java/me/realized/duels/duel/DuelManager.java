@@ -430,7 +430,23 @@ public class DuelManager implements Loadable {
 
             player.closeInventory();
             playerManager.create(player, match.isOwnInventory() && config.isOwnInventoryDropInventoryItems());
-            teleport.tryTeleport(player, locations.get(++position).toLocation());
+
+            final Location returnLocation = player.getLocation().clone();
+
+            teleport.tryTeleport(player, locations.get(++position).toLocation(), success -> {
+                if (!success) {
+                    cancelMatch(match, arena, player);
+                    return;
+                }
+
+                if (match.isFinished()) {
+                    // The match was called off while this teleport was still underway.
+                    teleport.tryTeleport(player, returnLocation);
+                    return;
+                }
+
+                match.setArrived(player);
+            });
 
             if (kit != null) {
                 PlayerUtil.reset(player);
@@ -461,6 +477,47 @@ public class DuelManager implements Loadable {
 
             arena.add(player);
         }
+    }
+
+    /**
+     * Calls off a match a player never made it into, e.g. because their teleport into the arena failed.
+     * Everyone is returned with their own items and bet, and nothing is counted.
+     *
+     * @param match Match to call off
+     * @param arena Arena the match is taking place
+     * @param cause Player that did not make it into the arena
+     */
+    private void cancelMatch(final MatchImpl match, final ArenaImpl arena, final Player cause) {
+        // Run on the arena's thread like the other cleanups, so two failed teleports can't both end the match.
+        plugin.getScheduler().runTaskAtLocation(arena.getPosition(1), () -> {
+            if (match.isFinished()) {
+                return;
+            }
+
+            Log.warn(this, "Cancelling match in arena " + arena.getName() + ": " + cause.getName() + " did not make it into the arena.");
+
+            for (final Player matchPlayer : match.getAllPlayers()) {
+                plugin.getScheduler().runTaskAtEntity(matchPlayer, () -> returnPlayer(matchPlayer, arena, match, cause));
+            }
+
+            arena.endMatch(null, null, Reason.OTHER);
+        });
+    }
+
+    private void returnPlayer(final Player player, final ArenaImpl arena, final MatchImpl match, final Player cause) {
+        // Players that quit were already returned by the quit handler. Without a PlayerInfo, handleTie would reset the
+        // player, which wipes an own-inventory player's items as those are not stored.
+        if (!player.isOnline() || playerManager.get(player) == null) {
+            return;
+        }
+
+        if (match.getKit() != null) {
+            // Take the kit back before the player's own items are restored.
+            PlayerUtil.reset(player);
+        }
+
+        handleTie(player, arena, match, true);
+        lang.sendMessage(player, "DUEL.start-failure.teleport-failed", "name", cause.getName());
     }
 
     private void handleInventories(final MatchImpl match) {
@@ -717,6 +774,14 @@ public class DuelManager implements Loadable {
 
             final MatchImpl match = arena.getMatch();
             if (match == null || match.isFinished()) {
+                return;
+            }
+
+            if (!match.hasArrived(player)) {
+                // Killing a player outside the arena would drop their items wherever they are standing. Their data is
+                // saved right after this event, so restore them here and call the match off for the opponent.
+                returnPlayer(player, arena, match, player);
+                cancelMatch(match, arena, player);
                 return;
             }
 

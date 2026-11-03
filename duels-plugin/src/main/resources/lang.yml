@@ -1,5 +1,5 @@
 # DO NOT EDIT THIS VALUE!
-config-version: 11
+config-version: 12
 
 # Define placeholders usable in any message below.
 # Example: Adding 'PREFIX: "[Cool]"' below and then putting '{PREFIX}' in a message will display '[Cool]' when the message is sent in game.
@@ -299,6 +299,7 @@ DUEL:
     arena-in-use: '{FAIL_PREFIX} That arena is already in use. Please select a different arena.'
     arena-not-applicable: '{FAIL_PREFIX} You cannot use kit %kit% on this arena.'
     not-enough-money: '{FAIL_PREFIX} You or your opponent does not have $%bet_amount%.'
+    teleport-failed: '{FAIL_PREFIX} %name% did not make it into the arena.'
   prevent:
     item-drop: '&cYou cannot drop items while in a duel.'
     command: '&cYou cannot use ''%command%'' while in a duel.'

@@ -9,6 +9,7 @@ import java.util.Map.Entry;
 import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 import lombok.Getter;
 import me.realized.duels.api.match.Match;
@@ -38,6 +39,9 @@ public class MatchImpl implements Match {
     // Default value for players is false, which is set to true if player is killed in the match.
     private final Map<Player, Boolean> players = new HashMap<>();
 
+    // Players whose teleport into the arena went through.
+    private final Set<UUID> arrived = ConcurrentHashMap.newKeySet();
+
     MatchImpl(final ArenaImpl arena, final KitImpl kit, final Map<UUID, List<ItemStack>> items, final int bet, final Queue source) {
         this.arena = arena;
         this.start = System.currentTimeMillis();
@@ -61,6 +65,14 @@ public class MatchImpl implements Match {
 
     public boolean isDead(final Player player) {
         return players.getOrDefault(player, true);
+    }
+
+    public void setArrived(final Player player) {
+        arrived.add(player.getUniqueId());
+    }
+
+    public boolean hasArrived(final Player player) {
+        return arrived.contains(player.getUniqueId());
     }
 
     public boolean isFromQueue() {

@@ -1,5 +1,6 @@
 package me.realized.duels.teleport;
 
+import java.util.function.Consumer;
 import me.realized.duels.DuelsPlugin;
 import me.realized.duels.hook.hooks.EssentialsHook;
 import me.realized.duels.util.Loadable;
@@ -11,6 +12,7 @@ import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.player.PlayerTeleportEvent;
+import org.jetbrains.annotations.Nullable;
 
 /**
  * Handles force teleporting of players.
@@ -46,8 +48,23 @@ public final class Teleport implements Loadable, Listener {
      * @param location Location to force-teleport the player
      */
     public void tryTeleport(final Player player, final Location location) {
+        tryTeleport(player, location, null);
+    }
+
+    /**
+     * Same as {@link #tryTeleport(Player, Location)}, but reports whether the teleport went through.
+     *
+     * @param player Player to force-teleport to a location
+     * @param location Location to force-teleport the player
+     * @param callback Called with the result once the teleport was attempted, on the player's thread
+     */
+    public void tryTeleport(final Player player, final Location location, @Nullable final Consumer<Boolean> callback) {
         if (location == null || location.getWorld() == null) {
             Log.warn(this, "Could not teleport " + player.getName() + "! Location is null");
+
+            if (callback != null) {
+                callback.accept(false);
+            }
             return;
         }
 
@@ -64,11 +81,22 @@ public final class Teleport implements Loadable, Listener {
 
             MetadataUtil.put(plugin, player, METADATA_KEY, target.clone());
 
-            player.teleportAsync(target).thenAccept(result -> {
-                if (result) {
-                    return;
+            player.teleportAsync(target).whenComplete((result, error) -> {
+                final boolean success = error == null && Boolean.TRUE.equals(result);
+
+                if (!success) {
+                    // Still present if no PlayerTeleportEvent was fired, i.e. the server refused the teleport outright.
+                    // Remove it so it doesn't force through (and redirect) the player's next unrelated teleport.
+                    final boolean eventFired = MetadataUtil.removeAndGet(plugin, player, METADATA_KEY) == null;
+                    Log.warn(this, "Could not teleport " + player.getName() + " to " + target.getWorld().getName()
+                        + "! (online=" + player.isOnline() + ", dead=" + player.isDead() + ", vehicle=" + player.isInsideVehicle()
+                        + ", passengers=" + player.getPassengers().size() + ", event-fired=" + eventFired
+                        + (error != null ? ", error=" + error : "") + ")");
                 }
-                Log.warn(this, "Could not teleport " + player.getName() + "! Player is dead or is vehicle");
+
+                if (callback != null) {
+                    callback.accept(success);
+                }
             });
         }, 1L);
     }
