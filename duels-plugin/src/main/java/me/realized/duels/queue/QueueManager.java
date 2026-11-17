@@ -35,6 +35,7 @@ import me.realized.duels.data.UserData;
 import me.realized.duels.data.UserManagerImpl;
 import me.realized.duels.duel.DuelManager;
 import me.realized.duels.hook.hooks.CombatTagPlusHook;
+import me.realized.duels.hook.hooks.LGCombatTagHook;
 import me.realized.duels.hook.hooks.PvPManagerHook;
 import me.realized.duels.hook.hooks.VaultHook;
 import me.realized.duels.hook.hooks.worldguard.WorldGuardHook;
@@ -82,6 +83,7 @@ public class QueueManager implements Loadable, DQueueManager, Listener {
 
     private CombatTagPlusHook combatTagPlus;
     private PvPManagerHook pvpManager;
+    private LGCombatTagHook lgCombatTag;
     private WorldGuardHook worldGuard;
     private VaultHook vault;
     private WrappedTask queueTask;
@@ -148,6 +150,7 @@ public class QueueManager implements Loadable, DQueueManager, Listener {
 
         this.combatTagPlus = plugin.getHookManager().getHook(CombatTagPlusHook.class);
         this.pvpManager = plugin.getHookManager().getHook(PvPManagerHook.class);
+        this.lgCombatTag = plugin.getHookManager().getHook(LGCombatTagHook.class);
         this.worldGuard = plugin.getHookManager().getHook(WorldGuardHook.class);
         this.vault = plugin.getHookManager().getHook(VaultHook.class);
         this.queueTask = plugin.getScheduler().runTaskTimer(() -> {
@@ -364,7 +367,8 @@ public class QueueManager implements Loadable, DQueueManager, Listener {
             return false;
         }
 
-        if ((combatTagPlus != null && combatTagPlus.isTagged(player)) || (pvpManager != null && pvpManager.isTagged(player))) {
+        if ((combatTagPlus != null && combatTagPlus.isTagged(player)) || (pvpManager != null && pvpManager.isTagged(player))
+            || (lgCombatTag != null && lgCombatTag.isTagged(player))) {
             lang.sendMessage(player, "ERROR.duel.is-tagged");
             return false;
         }

@@ -5,6 +5,7 @@ import me.realized.duels.api.event.request.RequestAcceptEvent;
 import me.realized.duels.command.BaseCommand;
 import me.realized.duels.hook.hooks.CombatLogXHook;
 import me.realized.duels.hook.hooks.CombatTagPlusHook;
+import me.realized.duels.hook.hooks.LGCombatTagHook;
 import me.realized.duels.hook.hooks.PvPManagerHook;
 import me.realized.duels.hook.hooks.worldguard.WorldGuardHook;
 import me.realized.duels.request.RequestImpl;
@@ -19,6 +20,7 @@ public class AcceptCommand extends BaseCommand {
 
     private final CombatTagPlusHook combatTagPlus;
     private final PvPManagerHook pvpManager;
+    private final LGCombatTagHook lgCombatTag;
     private final CombatLogXHook combatLogX;
     private final WorldGuardHook worldGuard;
 
@@ -26,6 +28,7 @@ public class AcceptCommand extends BaseCommand {
         super(plugin, "accept", "accept [player]", "Accepts a duel request.", 2, true);
         this.combatTagPlus = hookManager.getHook(CombatTagPlusHook.class);
         this.pvpManager = hookManager.getHook(PvPManagerHook.class);
+        this.lgCombatTag = hookManager.getHook(LGCombatTagHook.class);
         this.combatLogX = plugin.getHookManager().getHook(CombatLogXHook.class);
         this.worldGuard = hookManager.getHook(WorldGuardHook.class);
     }
@@ -46,6 +49,7 @@ public class AcceptCommand extends BaseCommand {
 
         if ((combatTagPlus != null && combatTagPlus.isTagged(player))
             || (pvpManager != null && pvpManager.isTagged(player))
+            || (lgCombatTag != null && lgCombatTag.isTagged(player))
             || (combatLogX != null && combatLogX.isTagged(player))) {
             lang.sendMessage(sender, "ERROR.duel.is-tagged");
             return;

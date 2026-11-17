@@ -26,6 +26,7 @@ import me.realized.duels.api.event.arena.ArenaRemoveEvent;
 import me.realized.duels.config.Config;
 import me.realized.duels.config.Lang;
 import me.realized.duels.data.ArenaData;
+import me.realized.duels.hook.hooks.LGCombatTagHook;
 import me.realized.duels.hook.hooks.PvPManagerHook;
 import me.realized.duels.kit.KitImpl;
 import me.realized.duels.queue.Queue;
@@ -111,13 +112,17 @@ public class ArenaManagerImpl implements Loadable, ArenaManager {
     @Override
     public void handleUnload() {
         final PvPManagerHook hook = plugin.getHookManager().getHook(PvPManagerHook.class);
-        if (hook != null) {
+        final LGCombatTagHook lgCombatTag = plugin.getHookManager().getHook(LGCombatTagHook.class);
+        if (hook != null || lgCombatTag != null) {
             for (final ArenaImpl arena : this.arenas) {
                 for (final Player player : arena.getPlayers()) {
-                    if (!hook.isTagged(player)) {
-                        continue;
+                    if (lgCombatTag != null) {
+                        // no-op for players who aren't tagged
+                        lgCombatTag.untag(player);
                     }
-                    hook.untag(player);
+                    if (hook != null && hook.isTagged(player)) {
+                        hook.untag(player);
+                    }
                 }
             }
         }

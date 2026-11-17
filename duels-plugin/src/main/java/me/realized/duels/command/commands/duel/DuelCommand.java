@@ -14,6 +14,7 @@ import me.realized.duels.command.commands.duel.subcommands.VersionCommand;
 import me.realized.duels.data.UserData;
 import me.realized.duels.hook.hooks.CombatLogXHook;
 import me.realized.duels.hook.hooks.CombatTagPlusHook;
+import me.realized.duels.hook.hooks.LGCombatTagHook;
 import me.realized.duels.hook.hooks.PvPManagerHook;
 import me.realized.duels.hook.hooks.VaultHook;
 import me.realized.duels.hook.hooks.worldguard.WorldGuardHook;
@@ -32,6 +33,7 @@ public class DuelCommand extends BaseCommand {
 
     private final CombatTagPlusHook combatTagPlus;
     private final PvPManagerHook pvpManager;
+    private final LGCombatTagHook lgCombatTag;
     private final CombatLogXHook combatLogX;
     private final WorldGuardHook worldGuard;
     private final VaultHook vault;
@@ -49,6 +51,7 @@ public class DuelCommand extends BaseCommand {
         );
         this.combatTagPlus = hookManager.getHook(CombatTagPlusHook.class);
         this.pvpManager = hookManager.getHook(PvPManagerHook.class);
+        this.lgCombatTag = hookManager.getHook(LGCombatTagHook.class);
         this.combatLogX = hookManager.getHook(CombatLogXHook.class);
         this.worldGuard = hookManager.getHook(WorldGuardHook.class);
         this.vault = hookManager.getHook(VaultHook.class);
@@ -89,6 +92,7 @@ public class DuelCommand extends BaseCommand {
 
         if ((combatTagPlus != null && combatTagPlus.isTagged(player))
             || (pvpManager != null && pvpManager.isTagged(player))
+            || (lgCombatTag != null && lgCombatTag.isTagged(player))
             || (combatLogX != null && combatLogX.isTagged(player))) {
             lang.sendMessage(sender, "ERROR.duel.is-tagged");
             return true;
