@@ -79,6 +79,12 @@ public final class Teleport implements Loadable, Listener {
                 essentials.setBackLocation(player, target);
             }
 
+            // The server refuses to teleport a player who is riding something (a mount, a pet, a GSit seat), and
+            // eject() above only removes what is riding the player. Dismount them right before teleporting.
+            if (player.isInsideVehicle()) {
+                player.leaveVehicle();
+            }
+
             MetadataUtil.put(plugin, player, METADATA_KEY, target.clone());
 
             player.teleportAsync(target).whenComplete((result, error) -> {
