@@ -33,4 +33,8 @@ public class WorldGuardHook extends PluginHook<DuelsPlugin> {
 
         return handler.findRegion(player, allowedRegions);
     }
+
+    public boolean blocksItemDrop(final Player player) {
+        return handler.blocksItemDrop(player);
+    }
 }

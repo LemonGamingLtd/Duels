@@ -66,6 +66,8 @@ import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.entity.EntityDamageEvent;
 import org.bukkit.event.entity.PlayerDeathEvent;
+import org.bukkit.event.inventory.InventoryClickEvent;
+import org.bukkit.event.inventory.InventoryCloseEvent;
 import org.bukkit.event.inventory.InventoryOpenEvent;
 import org.bukkit.event.inventory.InventoryType;
 import org.bukkit.event.player.PlayerCommandPreprocessEvent;
@@ -75,9 +77,13 @@ import org.bukkit.event.player.PlayerPickupItemEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.event.player.PlayerTeleportEvent;
 import org.bukkit.event.player.PlayerTeleportEvent.TeleportCause;
+import org.bukkit.inventory.CraftingInventory;
+import org.bukkit.inventory.EquipmentSlot;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
+import org.bukkit.inventory.PlayerInventory;
 import org.bukkit.inventory.meta.FireworkMeta;
+import org.bukkit.inventory.meta.ItemMeta;
 
 public class DuelManager implements Loadable {
 
@@ -587,6 +593,61 @@ public class DuelManager implements Loadable {
         }
     }
 
+    /**
+     * Whether an item drop by this player would be cancelled right now: by duel.prevent-item-drop during a match, or by
+     * WorldGuard's item-drop flag where they stand.
+     */
+    private boolean isItemDropBlocked(final Player player) {
+        if (config.isPreventItemDrop() && arenaManager.isInMatch(player)) {
+            return true;
+        }
+
+        return worldGuard != null && worldGuard.blocksItemDrop(player);
+    }
+
+    /**
+     * Puts an item back into the player's storage, then into an empty offhand, then into its own empty armour slot.
+     *
+     * @return what could not be placed, or null if all of it was
+     */
+    private static ItemStack placeBack(final PlayerInventory inventory, final ItemStack item) {
+        ItemStack rest = inventory.addItem(item.clone()).get(0);
+
+        if (rest == null) {
+            return null;
+        }
+
+        if (isEmpty(inventory.getItemInOffHand())) {
+            inventory.setItemInOffHand(rest);
+            return null;
+        }
+
+        final ItemMeta meta = rest.getItemMeta();
+        final EquipmentSlot slot = meta != null && meta.hasEquippable() ? meta.getEquippable().getSlot() : rest.getType().getEquipmentSlot();
+
+        if ((slot == EquipmentSlot.HEAD || slot == EquipmentSlot.CHEST || slot == EquipmentSlot.LEGS || slot == EquipmentSlot.FEET)
+            && isEmpty(inventory.getItem(slot))) {
+            inventory.setItem(slot, rest);
+            return null;
+        }
+
+        return rest;
+    }
+
+    private static boolean isEmpty(final ItemStack item) {
+        return item == null || item.getType().isAir() || item.getAmount() <= 0;
+    }
+
+    private static boolean isEmpty(final ItemStack[] items) {
+        for (final ItemStack item : items) {
+            if (!isEmpty(item)) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
     private class DuelListener implements Listener {
 
         @EventHandler(priority = EventPriority.HIGHEST)
@@ -842,6 +903,76 @@ public class DuelManager implements Loadable {
 
             event.setCancelled(true);
             lang.sendMessage(event.getPlayer(), "DUEL.prevent.item-drop");
+        }
+
+        // When a drop is cancelled (duel.prevent-item-drop, or WorldGuard's item-drop flag on the arena world), the server
+        // pushes the item back into the 36 storage slots and deletes whatever doesn't fit. Armour, offhand and crafting-grid
+        // items have no storage slot to go back to, so with a full inventory they were destroyed (LCB-6928). Stop drop
+        // clicks that would be cancelled anyway, so the item stays on the cursor or in its slot.
+        @EventHandler(ignoreCancelled = true)
+        public void on(final InventoryClickEvent event) {
+            switch (event.getAction()) {
+                case DROP_ALL_CURSOR:
+                case DROP_ONE_CURSOR:
+                case DROP_ALL_SLOT:
+                case DROP_ONE_SLOT:
+                    break;
+                default:
+                    return;
+            }
+
+            if (!(event.getWhoClicked() instanceof Player)) {
+                return;
+            }
+
+            final Player player = (Player) event.getWhoClicked();
+
+            if (!isItemDropBlocked(player)) {
+                return;
+            }
+
+            event.setCancelled(true);
+            lang.sendMessage(player, "DUEL.prevent.item-drop");
+        }
+
+        // Closing an inventory hands the cursor item (and the crafting grid) back through the same path: storage first,
+        // then a drop, which a blocked drop deletes. Place them ourselves before the server does.
+        @EventHandler(priority = EventPriority.HIGHEST)
+        public void on(final InventoryCloseEvent event) {
+            if (!(event.getPlayer() instanceof Player)) {
+                return;
+            }
+
+            final Player player = (Player) event.getPlayer();
+            final ItemStack cursor = player.getItemOnCursor();
+            final Inventory top = event.getView().getTopInventory();
+            final CraftingInventory crafting = top instanceof CraftingInventory ? (CraftingInventory) top : null;
+
+            if (isEmpty(cursor) && (crafting == null || isEmpty(crafting.getMatrix()))) {
+                return;
+            }
+
+            if (!isItemDropBlocked(player)) {
+                return;
+            }
+
+            final PlayerInventory inventory = player.getInventory();
+
+            if (!isEmpty(cursor)) {
+                player.setItemOnCursor(placeBack(inventory, cursor));
+            }
+
+            if (crafting != null) {
+                final ItemStack[] matrix = crafting.getMatrix();
+
+                for (int i = 0; i < matrix.length; i++) {
+                    if (!isEmpty(matrix[i])) {
+                        matrix[i] = placeBack(inventory, matrix[i]);
+                    }
+                }
+
+                crafting.setMatrix(matrix);
+            }
         }
 
         @EventHandler(ignoreCancelled = true)

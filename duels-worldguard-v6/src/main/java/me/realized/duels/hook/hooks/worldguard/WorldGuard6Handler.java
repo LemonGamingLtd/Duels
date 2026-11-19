@@ -17,4 +17,10 @@ public class WorldGuard6Handler implements WorldGuardHandler {
 
         return null;
     }
+
+    @Override
+    public boolean blocksItemDrop(final Player player) {
+        // Not checked on WorldGuard 6; those servers keep the old drop handling.
+        return false;
+    }
 }
