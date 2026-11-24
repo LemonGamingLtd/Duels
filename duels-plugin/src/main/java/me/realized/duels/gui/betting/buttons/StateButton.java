@@ -32,4 +32,12 @@ public class StateButton extends BaseButton {
             gui.setReady(player);
         }
     }
+
+    /**
+     * Show the owner as not ready again, after the other player changed their bet.
+     */
+    public void setNotReady() {
+        setDisplayed(Items.OFF.clone());
+        setDisplayName(lang.getMessage("GUI.item-betting.buttons.state.name-not-ready"));
+    }
 }

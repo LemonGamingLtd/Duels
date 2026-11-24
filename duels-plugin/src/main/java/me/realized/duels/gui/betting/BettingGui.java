@@ -44,6 +44,7 @@ public class BettingGui extends AbstractGui<DuelsPlugin> {
     private final Settings settings;
     private final Inventory inventory;
     private final UUID first, second;
+    private final StateButton firstState, secondState;
     private boolean firstReady, secondReady, waitDone, cancelWait;
 
     public BettingGui(final DuelsPlugin plugin, final Settings settings, final Player first, final Player second) {
@@ -59,9 +60,11 @@ public class BettingGui extends AbstractGui<DuelsPlugin> {
         Slots.run(45, 48, slot -> inventory.setItem(slot, Items.ORANGE_PANE.clone()));
         Slots.run(6, 9, slot -> inventory.setItem(slot, Items.BLUE_PANE.clone()));
         Slots.run(51, 54, slot -> inventory.setItem(slot, Items.BLUE_PANE.clone()));
-        set(inventory, 3, new StateButton(plugin, this, first));
+        this.firstState = new StateButton(plugin, this, first);
+        this.secondState = new StateButton(plugin, this, second);
+        set(inventory, 3, firstState);
         set(inventory, 4, new DetailsButton(plugin, settings));
-        set(inventory, 5, new StateButton(plugin, this, second));
+        set(inventory, 5, secondState);
         set(inventory, 48, new HeadButton(plugin, first));
         set(inventory, 50, new HeadButton(plugin, second));
     }
@@ -92,6 +95,27 @@ public class BettingGui extends AbstractGui<DuelsPlugin> {
 
     public void update(final Player player, final Button<DuelsPlugin> button) {
         update(player, inventory, button);
+    }
+
+    /**
+     * Un-ready the other player after this one changed their bet. Otherwise a player could take items back out after
+     * the other readied against them, then ready, leaving the other only the countdown to notice.
+     */
+    private void unreadyOther(final Player changer) {
+        final boolean changerIsFirst = isFirst(changer);
+        if (changerIsFirst ? !secondReady : !firstReady) {
+            return;
+        }
+
+        if (changerIsFirst) {
+            secondReady = false;
+        } else {
+            firstReady = false;
+        }
+
+        final StateButton otherState = changerIsFirst ? secondState : firstState;
+        otherState.setNotReady();
+        update(changer, otherState);
     }
 
     @Override
@@ -140,6 +164,9 @@ public class BettingGui extends AbstractGui<DuelsPlugin> {
         }
 
         if (!isReady(player) && section.isPart(slot)) {
+            if (event.getAction() != InventoryAction.NOTHING) {
+                unreadyOther(player);
+            }
             return;
         }
 
@@ -178,6 +205,8 @@ public class BettingGui extends AbstractGui<DuelsPlugin> {
 
         if (in && (isReady(player) || out || outSec)) {
             event.setCancelled(true);
+        } else if (in) {
+            unreadyOther(player);
         }
     }
 
